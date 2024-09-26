@@ -1,5 +1,5 @@
-# ScoreBoardQuests
-## An infinite quests scoreboard plugin
+# ScoreBoardQuests 
+### An infinite quests scoreboard plugin
 
 **Not Intend for public use**
 
