@@ -179,7 +179,7 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         }
         if (args.length == 1) {
             sender.sendMessage(mini.deserialize("""
-        <dark_aqua><st>====================</st>[ Commands ]<st>====================</st></dark_aqua>
+        <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
         <aqua>
         ┏ /sbquests reload:
         ┗<yellow> Reloads the plugin messages.</yellow>
@@ -188,7 +188,7 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         ┏ /sbquests forcecomplete <player> <amount> "-s":
         ┗<yellow> Completes the current quest for the player and optionally adds the specified amount to the streak.</yellow>
         </aqua>
-        <dark_aqua><st>==================================================</st></dark_aqua>
+        <dark_aqua><st>===============================================</st></dark_aqua>
         """));
         }
         return true;

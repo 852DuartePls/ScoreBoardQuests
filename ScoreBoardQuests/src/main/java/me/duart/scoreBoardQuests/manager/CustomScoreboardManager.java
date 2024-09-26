@@ -14,18 +14,20 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CustomScoreboardManager implements Listener {
     private final Random random = new Random();
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final ScoreBoardQuests plugin;
 
-    private final Map<String, String> playerQuests = new HashMap<>();
-    private final Map<String, Integer> playerProgress = new HashMap<>();
-    private final Map<String, Integer> playerQuestCount = new HashMap<>();
+    private final Map<String, Integer> playerQuestCount = new ConcurrentHashMap<>();
+    private final Map<String, PlayerQuestData> playerQuestDataMap = new ConcurrentHashMap<>();
+    private static final int[] THRESHOLDS = {10, 30, 65, 125, 200, 350, 600, 1000, 2000, 4000};
 
     private final Component QUARTZ_QUEST = createQuestComponent("ᴍɪɴᴇ ǫᴜᴀʀᴛᴢ ʙʟᴏᴄᴋs");
     private final Component COAL_QUEST = createQuestComponent("ᴍɪɴᴇ ᴄᴏᴀʟ ᴏʀᴇs");
@@ -75,7 +77,6 @@ public class CustomScoreboardManager implements Listener {
         put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 150, ""));
     }};
 
-
     public CustomScoreboardManager(ScoreBoardQuests plugin) {
         this.plugin = plugin;
     }
@@ -101,22 +102,22 @@ public class CustomScoreboardManager implements Listener {
         int scoreIndex = 2;
 
         String playerId = player.getUniqueId().toString();
-        String quest = playerQuests.get(playerId);
+        PlayerQuestData questData = playerQuestDataMap.get(playerId);
 
-        if (quest != null) {
-            QuestData questData = quests.get(quest);
-            if (questData == null) {
-                plugin.getLogger().warning("Quest data for quest '" + quest + "' not found. Skipping...");
+        if (questData != null) {
+            QuestData questDetails = quests.get(questData.getQuestName());
+            if (questDetails == null) {
+                plugin.getLogger().warning("Quest data for quest '" + questData.getQuestName() + "' not found. Skipping...");
                 return;
             }
 
-            objective.getScore(String.valueOf(scoreIndex)).customName(questData.displayName());
+            objective.getScore(String.valueOf(scoreIndex)).customName(questDetails.displayName());
 
-            int progress = playerProgress.getOrDefault(playerId, 0);
-            objective.getScore(String.valueOf(scoreIndex + 1)).customName(miniMessage.deserialize("<gray>ᴘʀᴏɢʀᴇss:</gray> " + progress + "/" + questData.goal()));
+            int progress = questData.getProgress();
+            objective.getScore(String.valueOf(scoreIndex + 1)).customName(miniMessage.deserialize("<gray>ᴘʀᴏɢʀᴇss:</gray> " + progress + "/" + questDetails.goal()));
             scoreIndex += 2;
 
-            Component rewardText = miniMessage.deserialize("<gray>ʀᴇᴡᴀʀᴅ: </gray><color:#80ff88>"+ questData.reward() + "$</color>");
+            Component rewardText = miniMessage.deserialize("<gray>ʀᴇᴡᴀʀᴅ: </gray><color:#80ff88>"+ questDetails.reward() + "$</color>");
             objective.getScore(String.valueOf(scoreIndex)).customName(rewardText);
             scoreIndex++;
         }
@@ -142,10 +143,9 @@ public class CustomScoreboardManager implements Listener {
         Player player = event.getPlayer();
         String playerId = player.getUniqueId().toString();
 
-        if (!playerQuests.containsKey(playerId)) {
+        if (!playerQuestDataMap.containsKey(playerId)) {
             String quest = (String) quests.keySet().toArray()[random.nextInt(quests.size())];
-            playerQuests.put(playerId, quest);
-            playerProgress.put(playerId, 0);
+            playerQuestDataMap.put(playerId, new PlayerQuestData(quest));
         }
 
         createScoreboard(player);
@@ -153,12 +153,22 @@ public class CustomScoreboardManager implements Listener {
 
     public void updateCurrentQuest(Player player, int completedCount) {
         String playerId = player.getUniqueId().toString();
-        String newQuest = (String) quests.keySet().toArray()[random.nextInt(quests.size())];
+        PlayerQuestData playerQuestData = playerQuestDataMap.get(playerId);
 
-        playerQuests.put(playerId, newQuest);
-        playerProgress.put(playerId, 0);
+        if (playerQuestData == null) {
+            plugin.getLogger().warning("No quest data found for player " + playerId);
+            return;
+        }
 
-        int completedQuests = playerQuestCount.getOrDefault(playerId, 0) + completedCount;
+        String newQuest;
+        do {
+            newQuest = (String) quests.keySet().toArray()[random.nextInt(quests.size())];
+        } while (newQuest.equals(playerQuestData.getQuestName()));
+
+        playerQuestData.setProgress(0);
+        playerQuestDataMap.put(playerId, new PlayerQuestData(newQuest));
+
+        int completedQuests = getCompletedQuests(playerId) + completedCount;
         playerQuestCount.put(playerId, completedQuests);
 
         updateScores(player);
@@ -166,16 +176,23 @@ public class CustomScoreboardManager implements Listener {
 
     public void updateProgress(Player player, int amount) {
         String playerId = player.getUniqueId().toString();
-        playerProgress.put(playerId, playerProgress.getOrDefault(playerId, 0) + amount);
+        PlayerQuestData playerQuestData = playerQuestDataMap.get(playerId);
+
+        if (playerQuestData != null) {
+            playerQuestData.setProgress(playerQuestData.getProgress() + amount);
+        }
+
         updateScores(player);
     }
 
     public String getPlayerQuest(String playerId) {
-        return playerQuests.getOrDefault(playerId, "No quest assigned");
+        PlayerQuestData questData = playerQuestDataMap.get(playerId);
+        return (questData != null) ? questData.getQuestName() : "No quest assigned";
     }
 
     public int getPlayerProgress(String playerId) {
-        return playerProgress.getOrDefault(playerId, 0);
+        PlayerQuestData questData = playerQuestDataMap.get(playerId);
+        return (questData != null) ? questData.getProgress() : 0;
     }
 
     public int getQuestGoal(String quest) {
@@ -189,11 +206,11 @@ public class CustomScoreboardManager implements Listener {
     }
 
     public static int getMultiplier(int completedQuests) {
-        int[] thresholds = {10, 30, 65, 125, 200, 350, 600, 1000, 2000, 4000};
-        for (int i = 0; i < thresholds.length; i++) {
-            if (completedQuests < thresholds[i]) return i + 1;
-        }
-        return thresholds.length + 1;
+        long count = Arrays.stream(THRESHOLDS)
+                .filter(threshold -> completedQuests >= threshold)
+                .count();
+
+        return (int) count + 1;
     }
 
     public int getCompletedQuests(String playerId) {
@@ -201,4 +218,26 @@ public class CustomScoreboardManager implements Listener {
     }
 
     public record QuestData(Component displayName, int goal, int reward, String optionalReward) { }
+
+    public static class PlayerQuestData {
+        private final String questName;
+        private int progress;
+
+        public PlayerQuestData(String questName) {
+            this.questName = questName;
+            this.progress = 0;
+        }
+
+        public String getQuestName() {
+            return questName;
+        }
+
+        public int getProgress() {
+            return progress;
+        }
+
+        public void setProgress(int progress) {
+            this.progress = progress;
+        }
+    }
 }

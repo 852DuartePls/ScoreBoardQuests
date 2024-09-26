@@ -59,66 +59,42 @@ public class ScoreboardQuestsHandler implements Listener {
         this.multiplierHandler = multiplierHandler;
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
+    @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         String playerId = player.getUniqueId().toString();
         String quest = scoreboardManager.getPlayerQuest(playerId);
-        Component prefix = plugin.getMessage("Plugin_Prefix");
 
         if (quest == null || !blockBreakQuests.containsKey(quest)) return;
 
+        Component prefix = plugin.getMessage("Plugin_Prefix");
         Material blockType = event.getBlock().getType();
         Block block = event.getBlock();
-        int increment = 0;
+        int increment = getBlockIncrement(quest, blockType, block);
 
-        switch (blockType) {
-            case QUARTZ_BLOCK:
-                if (quest.equals("Mine 64 Quartz Blocks")) increment = 1;
-                break;
-            case DEEPSLATE_COAL_ORE:
-            case COAL_ORE:
-                if (quest.equals("Mine 64 Coal Ores")) increment = 1;
-                break;
-            case IRON_ORE:
-            case DEEPSLATE_IRON_ORE:
-                if (quest.equals("Mine 32 Iron Ores")) increment = 1;
-                break;
-            case DIAMOND_ORE:
-            case DEEPSLATE_DIAMOND_ORE:
-                if (quest.equals("Mine 10 Diamond Ores")) increment = 1;
-                break;
-            case EMERALD_ORE:
-            case DEEPSLATE_EMERALD_ORE:
-                if (quest.equals("Mine 5 Emerald Ores")) increment = 1;
-                break;
-            case STONE:
-                if (quest.equals("Break 200 Stone Blocks")) increment = 1;
-                break;
-            case END_STONE:
-                if (quest.equals("Break 200 End Stones")) increment = 1;
-                break;
-            case OBSIDIAN:
-                if (quest.equals("Break 100 Obsidian Blocks")) increment = 1;
-                break;
-            case WHEAT:
-                if (quest.equals("Harvest 25 Wheat")) {
-                    if (block.getBlockData() instanceof Ageable ageable && ageable.getAge() == 7) {
-                        increment = 1;
-                    }
-                }
-                break;
-            default:
-                return;
+        if (increment > 0) {
+            scoreboardManager.updateProgress(player, increment);
+            handleQuestCompletion(player, playerId, quest, prefix);
         }
+    }
 
-        scoreboardManager.updateProgress(player, increment);
-        handleQuestCompletion(player, playerId, quest, prefix);
+    private int getBlockIncrement(String quest, Material blockType, Block block) {
+        return switch (quest) {
+            case "Mine 64 Quartz Blocks" -> blockType == Material.QUARTZ_BLOCK ? 1 : 0;
+            case "Mine 64 Coal Ores" -> (blockType == Material.COAL_ORE || blockType == Material.DEEPSLATE_COAL_ORE) ? 1 : 0;
+            case "Mine 32 Iron Ores" -> (blockType == Material.IRON_ORE || blockType == Material.DEEPSLATE_IRON_ORE) ? 1 : 0;
+            case "Mine 10 Diamond Ores" -> (blockType == Material.DIAMOND_ORE || blockType == Material.DEEPSLATE_DIAMOND_ORE) ? 1 : 0;
+            case "Mine 5 Emerald Ores" -> (blockType == Material.EMERALD_ORE || blockType == Material.DEEPSLATE_EMERALD_ORE) ? 1 : 0;
+            case "Break 200 Stone Blocks" -> blockType == Material.STONE ? 1 : 0;
+            case "Break 200 End Stones" -> blockType == Material.END_STONE ? 1 : 0;
+            case "Break 100 Obsidian Blocks" -> blockType == Material.OBSIDIAN ? 1 : 0;
+            case "Harvest 25 Wheat" -> block.getBlockData() instanceof Ageable ageable && ageable.getAge() == 7 ? 1 : 0;
+            default -> 0;
+        };
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
     public void onEntityDeath(EntityDeathEvent event) {
-        Component prefix = plugin.getMessage("Plugin_Prefix");
         Player player = event.getEntity().getKiller();
         if (player == null) return;
 
@@ -126,51 +102,31 @@ public class ScoreboardQuestsHandler implements Listener {
         String quest = scoreboardManager.getPlayerQuest(playerId);
         if (quest == null || !mobKillQuests.containsKey(quest)) return;
 
+        Component prefix = plugin.getMessage("Plugin_Prefix");
         EntityType entityType = event.getEntityType();
-        int killCount = 0;
-
-        switch (entityType) {
-            case BLAZE:
-                if (quest.equals("Kill 50 Blazes")) killCount = 1;
-                break;
-            case VEX:
-                if (quest.equals("Kill 25 Vex")) killCount = 1;
-                break;
-            case SKELETON:
-                if (quest.equals("Kill 25 Skeletons")) killCount = 1;
-                break;
-            case WITHER_SKELETON:
-                if (quest.equals("Kill 25 Wither Skeletons")) killCount = 1;
-                break;
-            case CREEPER:
-                if (quest.equals("Kill 25 Creepers")) killCount = 1;
-                break;
-            case WITHER:
-                if (quest.equals("Kill a Wither")) killCount = 1;
-                break;
-            case COW:
-                if (quest.equals("Kill 50 Cows")) killCount = 1;
-                break;
-            case RABBIT:
-                if (quest.equals("Kill 10 Rabbits")) killCount = 1;
-                break;
-            case SHEEP:
-                if (quest.equals("Kill 50 Sheep")) killCount = 1;
-                break;
-            case CHICKEN:
-                if (quest.equals("Kill 10 Chickens")) killCount = 1;
-                break;
-            case PIG:
-                if (quest.equals("Kill 50 Pigs")) killCount = 1;
-                break;
-            default:
-                return;
-        }
+        int killCount = getMobKillIncrement(quest, entityType);
 
         if (killCount > 0) {
             scoreboardManager.updateProgress(player, killCount);
             handleQuestCompletion(player, playerId, quest, prefix);
         }
+    }
+
+    private int getMobKillIncrement(String quest, EntityType entityType) {
+        return switch (quest) {
+            case "Kill 50 Blazes" -> entityType == EntityType.BLAZE ? 1 : 0;
+            case "Kill 25 Vex" -> entityType == EntityType.VEX ? 1 : 0;
+            case "Kill 25 Skeletons" -> entityType == EntityType.SKELETON ? 1 : 0;
+            case "Kill 25 Wither Skeletons" -> entityType == EntityType.WITHER_SKELETON ? 1 : 0;
+            case "Kill 25 Creepers" -> entityType == EntityType.CREEPER ? 1 : 0;
+            case "Kill a Wither" -> entityType == EntityType.WITHER ? 1 : 0;
+            case "Kill 50 Cows" -> entityType == EntityType.COW ? 1 : 0;
+            case "Kill 10 Rabbits" -> entityType == EntityType.RABBIT ? 1 : 0;
+            case "Kill 50 Sheep" -> entityType == EntityType.SHEEP ? 1 : 0;
+            case "Kill 10 Chickens" -> entityType == EntityType.CHICKEN ? 1 : 0;
+            case "Kill 50 Pigs" -> entityType == EntityType.PIG ? 1 : 0;
+            default -> 0;
+        };
     }
 
     private void handleQuestCompletion(Player player, String playerId, String quest, Component prefix) {
@@ -188,13 +144,7 @@ public class ScoreboardQuestsHandler implements Listener {
                     .append(mini.deserialize("<white> completed!</white>")));
             scoreboardManager.getPlayerReward(playerId);
             scoreboardManager.updateCurrentQuest(player, 1);
-            player.sendMessage(" ");
             economy.depositPlayer(player, totalAmount);
-            player.sendMessage(prefix.append(Component.text(" "))
-                    .append(mini.deserialize("<reset><yellow>The quest reward is: <green>" + reward
-                            + "$</green>, and your total multiplier is: <gold>" + multiplier
-                            + "</gold>, so your total amount received is: <gold>" + totalAmount
-                            + "$</gold></yellow>")));
         }
     }
 }
