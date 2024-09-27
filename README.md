@@ -6,13 +6,16 @@
 ## *Commands:*
 
 ### /sbquests reload
-Reloads the plugin messages.
+Reload the plugin messages.
 
 ### /sbquests pay (player) (amount) "-s"
 Processes a player's payment.
 
 ### /sbquests forcecomplete (player) (quantity) "-s"
 Completes the current quest for the player and optionally adds the specified quantity to the streak.
+
+### /sbquests toggle (player)
+Toggles the visibility of the quests scoreboard.
 
 ## Config — Messages
 
