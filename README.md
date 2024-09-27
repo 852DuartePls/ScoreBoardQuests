@@ -8,10 +8,10 @@
 ### /sbquests reload
 Reloads the plugin messages.
 
-### /sbquests pay [player] [amount] "-s"
+### /sbquests pay (player) (amount) "-s"
 Processes a player's payment.
 
-### /sbquests forcecomplete [player] [quantity] "-s"
+### /sbquests forcecomplete (player) (quantity) "-s"
 Completes the current quest for the player and optionally adds the specified quantity to the streak.
 
 ## Config — Messages

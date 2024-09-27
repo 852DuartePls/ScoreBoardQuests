@@ -1,5 +1,5 @@
 name: ScoreBoardQuests
-version: '0.0.1'
+version: '0.0.3'
 main: me.duart.scoreBoardQuests.ScoreBoardQuests
 api-version: '1.21'
 authors: [ DaveDuart ]
@@ -10,5 +10,3 @@ commands:
   sbquests:
     description: ScoreboardQuests commands
     aliases: [ sbq ]
-    permission: scoreboardquests.admin
-    permission-message: You do not have permission to use this command.

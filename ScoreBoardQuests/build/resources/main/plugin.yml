@@ -10,5 +10,3 @@ commands:
   sbquests:
     description: ScoreboardQuests commands
     aliases: [ sbq ]
-    permission: scoreboardquests.admin
-    permission-message: You do not have permission to use this command.

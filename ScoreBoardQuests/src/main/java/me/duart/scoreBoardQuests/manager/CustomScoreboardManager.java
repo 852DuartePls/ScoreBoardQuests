@@ -14,19 +14,18 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CustomScoreboardManager implements Listener {
     private final Random random = new Random();
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final MiniMessage mini = MiniMessage.miniMessage();
     private final ScoreBoardQuests plugin;
 
     private final Map<String, Integer> playerQuestCount = new ConcurrentHashMap<>();
     private final Map<String, PlayerQuestData> playerQuestDataMap = new ConcurrentHashMap<>();
+    private final HashMap<Player, Boolean> scoreboardVisible = new HashMap<>();
+    private final List<String> questNames;
     private static final int[] THRESHOLDS = {10, 30, 65, 125, 200, 350, 600, 1000, 2000, 4000};
 
     private final Component QUARTZ_QUEST = createQuestComponent("ᴍɪɴᴇ ǫᴜᴀʀᴛᴢ ʙʟᴏᴄᴋs");
@@ -51,7 +50,7 @@ public class CustomScoreboardManager implements Listener {
     private final Component PIG_QUEST = createQuestComponent("ᴋɪʟʟ ᴘɪɢs");
 
     private Component createQuestComponent(String questDisplayName) {
-        return miniMessage.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
+        return mini.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
     }
 
     private final Map<String, QuestData> quests = new HashMap<>() {{
@@ -79,12 +78,26 @@ public class CustomScoreboardManager implements Listener {
 
     public CustomScoreboardManager(ScoreBoardQuests plugin) {
         this.plugin = plugin;
+        this.questNames = new ArrayList<>(quests.keySet());
+    }
+
+    public void toggleScoreboardVisibility(Player player) {
+        boolean isVisible = scoreboardVisible.getOrDefault(player, true);
+        scoreboardVisible.put(player, !isVisible);
+        player.sendMessage(mini.deserialize("<green>Quests scoreboard " + (isVisible ? "hidden." : "visible.")));
+
+        if (isVisible) {
+            player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
+        } else {
+            createScoreboard(player);
+        }
     }
 
     private void updateScores(Player player) {
         Component questTitle = plugin.getMessage("Title");
         Component advertisement = plugin.getMessage("Bottom_Message");
         Scoreboard playerScoreboard = player.getScoreboard();
+        if (!scoreboardVisible.getOrDefault(player, true)) return;
 
         if (playerScoreboard == Bukkit.getScoreboardManager().getMainScoreboard()) {
             playerScoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -114,10 +127,10 @@ public class CustomScoreboardManager implements Listener {
             objective.getScore(String.valueOf(scoreIndex)).customName(questDetails.displayName());
 
             int progress = questData.getProgress();
-            objective.getScore(String.valueOf(scoreIndex + 1)).customName(miniMessage.deserialize("<gray>ᴘʀᴏɢʀᴇss:</gray> " + progress + "/" + questDetails.goal()));
+            objective.getScore(String.valueOf(scoreIndex + 1)).customName(mini.deserialize("<gray>ᴘʀᴏɢʀᴇss:</gray> " + progress + "/" + questDetails.goal()));
             scoreIndex += 2;
 
-            Component rewardText = miniMessage.deserialize("<gray>ʀᴇᴡᴀʀᴅ: </gray><color:#80ff88>"+ questDetails.reward() + "$</color>");
+            Component rewardText = mini.deserialize("<gray>ʀᴇᴡᴀʀᴅ: </gray><color:#80ff88>"+ questDetails.reward() + "$</color>");
             objective.getScore(String.valueOf(scoreIndex)).customName(rewardText);
             scoreIndex++;
         }
@@ -125,7 +138,7 @@ public class CustomScoreboardManager implements Listener {
         int completedQuests = playerQuestCount.getOrDefault(playerId, 0);
         int multiplier = getMultiplier(completedQuests);
 
-        Component streakComponent = miniMessage.deserialize("<gray>sᴛʀᴇᴀᴋ: </gray>" + completedQuests + (multiplier >= 2 ? " <color:#80ff88>(x" + multiplier + "$)</color>" : ""));
+        Component streakComponent = mini.deserialize("<gray>sᴛʀᴇᴀᴋ: </gray>" + completedQuests + (multiplier >= 2 ? " <color:#80ff88>(x" + multiplier + "$)</color>" : ""));
         objective.getScore(String.valueOf(scoreIndex)).customName(streakComponent);
         scoreIndex++;
 
@@ -135,7 +148,9 @@ public class CustomScoreboardManager implements Listener {
     }
 
     public void createScoreboard(Player player) {
-        updateScores(player);
+        if (scoreboardVisible.getOrDefault(player, true)){
+            updateScores(player);
+        }
     }
 
     @EventHandler
@@ -143,11 +158,12 @@ public class CustomScoreboardManager implements Listener {
         Player player = event.getPlayer();
         String playerId = player.getUniqueId().toString();
 
-        if (!playerQuestDataMap.containsKey(playerId)) {
-            String quest = (String) quests.keySet().toArray()[random.nextInt(quests.size())];
-            playerQuestDataMap.put(playerId, new PlayerQuestData(quest));
-        }
+        playerQuestDataMap.computeIfAbsent(playerId, id -> {
+            String quest = questNames.get(random.nextInt(questNames.size()));
+            return new PlayerQuestData(quest);
+        });
 
+        scoreboardVisible.putIfAbsent(player, true);
         createScoreboard(player);
     }
 
@@ -203,6 +219,10 @@ public class CustomScoreboardManager implements Listener {
     public int getPlayerReward(String quest) {
         QuestData questData = quests.get(quest);
         return (questData != null) ? questData.reward() : -1;
+    }
+
+    public boolean isScoreboardVisible(Player player) {
+        return scoreboardVisible.getOrDefault(player, true);
     }
 
     public static int getMultiplier(int completedQuests) {

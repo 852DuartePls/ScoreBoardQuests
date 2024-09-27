@@ -12,6 +12,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +26,7 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
     private final CustomScoreboardManager scoreboardManager;
     private final MultiplierHandler multiplierHandler;
 
-    public CommandsManager(ScoreBoardQuests plugin, MultiplierHandler multiplierHandler, CustomScoreboardManager scoreboardManager ) {
+    public CommandsManager(@NotNull ScoreBoardQuests plugin, MultiplierHandler multiplierHandler, CustomScoreboardManager scoreboardManager ) {
         this.plugin = plugin;
         this.scoreboardManager = scoreboardManager;
         this.multiplierHandler = multiplierHandler;
@@ -33,7 +34,7 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
         String pluginVersion = plugin.getPluginMeta().getVersion();
         var pluginVersionComponent = mini.deserialize("<green> v" + pluginVersion + "</green>");
         var pluginPrefix = plugin.getMessage("Plugin_Prefix");
@@ -52,6 +53,7 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         String subCommand = args[0].toLowerCase();
 
         return switch (subCommand) {
+            case "toggle" -> handleToggleCommand(sender, pluginPrefix, noPermission, args);
             case "reload" -> handleReloadCommand(sender);
             case "pay" -> handlePaymentCommand(sender, missingArgsPayment, pluginPrefix, noPermission, playerNotFound, invalidAmount, notEnoughBalance, args);
             case "forcecomplete" -> handleForceCompleteCommand(sender, pluginPrefix, noPermission, playerNotFound, missingArgsForceComplete, args);
@@ -60,14 +62,14 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         };
     }
 
-    private boolean handleReloadCommand(CommandSender sender) {
+    private boolean handleReloadCommand(@NotNull CommandSender sender) {
         plugin.onReload();
         var PluginPrefix = plugin.getMessage("Plugin_Prefix");
         sender.sendMessage(PluginPrefix.append(mini.deserialize("<reset><green> Plugin reloaded!</green>")));
         return false;
     }
 
-    private boolean handlePaymentCommand(CommandSender sender, Component missingArgsPayment, Component pluginPrefix, Component noPermission, Component playerNotFound, Component invalidAmount, Component notEnoughBalance, String[] args) {
+    private boolean handlePaymentCommand(CommandSender sender, Component missingArgsPayment, Component pluginPrefix, Component noPermission, Component playerNotFound, Component invalidAmount, Component notEnoughBalance, String @NotNull [] args) {
         boolean silentMode = false;
 
         for (String arg : args) {
@@ -123,7 +125,7 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean handleForceCompleteCommand(CommandSender sender, Component pluginPrefix, Component noPermission, Component playerNotFound, Component missingArgsForceComplete, String[] args) {
+    private boolean handleForceCompleteCommand(CommandSender sender, Component pluginPrefix, Component noPermission, Component playerNotFound, Component missingArgsForceComplete, String @NotNull [] args) {
         boolean silentMode = false;
         int numQuests = 1;
 
@@ -173,46 +175,84 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean handleHelpCommand(CommandSender sender, Component pluginPrefix, Component pluginVersionComponent, String[] args) {
+    private boolean handleHelpCommand(@NotNull CommandSender sender, Component pluginPrefix, Component pluginVersionComponent, String[] args) {
         if (!sender.hasPermission("scoreboardquests.admin") || !sender.hasPermission("scoreboardquests.pay")) {
             sender.sendMessage(pluginPrefix.append(pluginVersionComponent));
+            return false;
         }
+
         if (args.length == 1) {
             sender.sendMessage(mini.deserialize("""
         <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
         <aqua>
         ┏ /sbquests reload:
-        ┗<yellow> Reloads the plugin messages.</yellow>
+        ┗<gold> Reloads the plugin messages.</gold>
+        
         ┏ /sbquests pay <player> <amount> "-s":
-        ┗<yellow> Processes a player's payment.</yellow>
-        ┏ /sbquests forcecomplete <player> <amount> "-s":
-        ┗<yellow> Completes the current quest for the player and optionally adds the specified amount to the streak.</yellow>
+        ┗<gold> Processes a player's payment.</gold>
+        
+        ┏ /sbquests forcecomplete <dark_gray><player> <amount></dark_gray> "-s":
+        ┗<gold> Completes the current quest for the player and optionally adds the specified amount to the streak.</gold>
+        
+        ┏ /sbquests toggle <dark_gray><player></dark_gray>:
+        ┗<gold> Toggles the visibility of the quests scoreboard.</gold>
         </aqua>
-        <dark_aqua><st>===============================================</st></dark_aqua>
+        <dark_aqua><st>=============================================</st></dark_aqua>
         """));
         }
         return true;
     };
 
-    private Player getTargetPlayer(CommandSender sender, String[] args) {
+    private boolean handleToggleCommand(CommandSender sender, Component pluginPrefix, Component playerNotFound, String @NotNull [] args) {
+        if (args.length == 1) {
+            if (!(sender instanceof Player targetPlayer)) {
+                sender.sendMessage(mini.deserialize("<red>You must be a player to toggle your own scoreboard visibility!</red>"));
+                return false;
+            }
+
+            scoreboardManager.toggleScoreboardVisibility(targetPlayer);
+            return true;
+        }
+
+        if (args.length == 2) {
+            if (!sender.hasPermission("scoreboardquests.admin")) {
+                sender.sendMessage(mini.deserialize("<red>You do not have permission to toggle another player's scoreboard visibility.</red>"));
+                return false;
+            }
+
+            Player targetPlayer = getTargetPlayer(sender, args);
+            if (targetPlayer == null) {
+                sender.sendMessage(pluginPrefix.append(playerNotFound));
+                return false;
+            }
+
+            scoreboardManager.toggleScoreboardVisibility(targetPlayer);
+            return true;
+        }
+
+        return false;
+    }
+
+    private @Nullable Player getTargetPlayer(CommandSender sender, String @NotNull [] args) {
         if (args.length >= 2) {
             Player target = Bukkit.getPlayer(args[1]);
             if (target == null) {
                 sender.sendMessage(mini.deserialize("<red>Player " + args[1] + " not found!</red>"));
             }
             return target;
-        } else if (sender instanceof Player) {
-            return (Player) sender;
-        } else {
+        }
+        if (sender instanceof Player) return (Player) sender;
+        else {
             sender.sendMessage(mini.deserialize("<red>You must specify a player when running this command from the console!</red>"));
             return null;
         }
     }
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String[] args) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
+            completions.add("toggle");
             if (sender.hasPermission("scoreboardquests.pay")) {
                 completions.add("pay");
                 completions.add("help");

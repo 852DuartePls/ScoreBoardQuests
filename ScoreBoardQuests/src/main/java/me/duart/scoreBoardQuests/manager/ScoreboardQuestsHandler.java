@@ -59,12 +59,12 @@ public class ScoreboardQuestsHandler implements Listener {
         this.multiplierHandler = multiplierHandler;
     }
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         String playerId = player.getUniqueId().toString();
         String quest = scoreboardManager.getPlayerQuest(playerId);
-
+        if (!scoreboardManager.isScoreboardVisible(player)) return;
         if (quest == null || !blockBreakQuests.containsKey(quest)) return;
 
         Component prefix = plugin.getMessage("Plugin_Prefix");
@@ -100,6 +100,7 @@ public class ScoreboardQuestsHandler implements Listener {
 
         String playerId = player.getUniqueId().toString();
         String quest = scoreboardManager.getPlayerQuest(playerId);
+        if (!scoreboardManager.isScoreboardVisible(player)) return;
         if (quest == null || !mobKillQuests.containsKey(quest)) return;
 
         Component prefix = plugin.getMessage("Plugin_Prefix");
@@ -132,19 +133,21 @@ public class ScoreboardQuestsHandler implements Listener {
     private void handleQuestCompletion(Player player, String playerId, String quest, Component prefix) {
         int progress = scoreboardManager.getPlayerProgress(playerId);
         int goal = scoreboardManager.getQuestGoal(quest);
-        int comppletedQuests = scoreboardManager.getCompletedQuests(playerId);
+        int completedQuests = scoreboardManager.getCompletedQuests(playerId);
         int reward = scoreboardManager.getPlayerReward(quest);
-        int multiplier = multiplierHandler.getTotalMultiplier(player, comppletedQuests);
+        int multiplier = multiplierHandler.getTotalMultiplier(player, completedQuests);
         double totalAmount = reward * multiplier;
 
         if (progress >= goal) {
-            player.sendMessage(prefix.append(Component.text(" "))
-                    .append(mini.deserialize("<reset><white>Quest: "))
-                    .append(Component.text(quest)).color(NamedTextColor.GOLD)
-                    .append(mini.deserialize("<white> completed!</white>")));
-            scoreboardManager.getPlayerReward(playerId);
-            scoreboardManager.updateCurrentQuest(player, 1);
-            economy.depositPlayer(player, totalAmount);
+            if (scoreboardManager.isScoreboardVisible(player)) {
+                player.sendMessage(prefix.append(Component.text(" "))
+                        .append(mini.deserialize("<reset><white>Quest: "))
+                        .append(Component.text(quest)).color(NamedTextColor.GOLD)
+                        .append(mini.deserialize("<white> completed!</white>")));
+                scoreboardManager.getPlayerReward(playerId);
+                scoreboardManager.updateCurrentQuest(player, 1);
+                economy.depositPlayer(player, totalAmount);
+            }
         }
     }
 }
