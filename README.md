@@ -6,7 +6,7 @@
 ## *Commands:*
 
 ### /sbquests reload
-Reloads the plugin messages.
+Reload the plugin messages.
 
 ### /sbquests pay (player) (amount) "-s"
 Processes a player's payment.
