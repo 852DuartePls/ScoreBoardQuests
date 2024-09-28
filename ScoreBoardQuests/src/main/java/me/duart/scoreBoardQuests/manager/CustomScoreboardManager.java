@@ -5,10 +5,13 @@ import me.duart.scoreBoardQuests.ScoreBoardQuests;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -21,6 +24,7 @@ public class CustomScoreboardManager implements Listener {
     private final Random random = new Random();
     private final MiniMessage mini = MiniMessage.miniMessage();
     private final ScoreBoardQuests plugin;
+    private final CommandSender silentSender;
 
     private final Map<String, Integer> playerQuestCount = new ConcurrentHashMap<>();
     private final Map<String, PlayerQuestData> playerQuestDataMap = new ConcurrentHashMap<>();
@@ -49,36 +53,44 @@ public class CustomScoreboardManager implements Listener {
     private final Component CHICKEN_QUEST = createQuestComponent("ᴋɪʟʟ ᴄʜɪᴄᴋᴇɴs");
     private final Component PIG_QUEST = createQuestComponent("ᴋɪʟʟ ᴘɪɢs");
 
+    private final String TEST_REWARD = createCommandReward("minecraft:give %player% diamond[custom_name='[\"\",{\"text\":\"Reward Diamond\",\"italic\":false,\"color\":\"dark_aqua\"}]']");
+    private final String TEST_REWARD2 = createCommandReward("minecraft:give %player% gold_ingot[custom_name='[\"\",{\"text\":\"Reward Gold\",\"italic\":false,\"bold\":true,\"color\":\"gold\"}]']");
+
     private Component createQuestComponent(String questDisplayName) {
         return mini.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
     }
 
+    private String createCommandReward(String reward) {
+        return "command:" + reward;
+    }
+
     private final Map<String, QuestData> quests = new HashMap<>() {{
-        put("Mine 64 Quartz Blocks", new QuestData(QUARTZ_QUEST, 64, 300, ""));
-        put("Mine 64 Coal Ores", new QuestData(COAL_QUEST, 64, 200, ""));
-        put("Mine 32 Iron Ores", new QuestData(IRON_QUEST, 32, 400, ""));
-        put("Mine 10 Diamond Ores", new QuestData(DIAMOND_QUEST, 10, 800 , ""));
-        put("Mine 5 Emerald Ores", new QuestData(EMERALD_QUEST, 5, 1000 , ""));
-        put("Break 200 Stone Blocks", new QuestData(STONE_QUEST, 200, 100 , ""));
-        put("Break 200 End Stones", new QuestData(END_STONE_QUEST, 200, 150 , ""));
-        put("Break 100 Obsidian Blocks", new QuestData(OBSIDIAN_QUEST, 100, 700 , ""));
-        put("Harvest 25 Wheat", new QuestData(WHEAT_QUEST, 25, 100, ""));
-        put("Kill 50 Blazes", new QuestData(BLAZE_QUEST, 50, 900, ""));
-        put("Kill 25 Vex", new QuestData(VEX_QUEST, 25, 1200, ""));
-        put("Kill 25 Skeletons", new QuestData(SKELETON_QUEST, 25, 500, ""));
-        put("Kill 25 Wither Skeletons", new QuestData(WITHER_SKELETON_QUEST, 25, 1300, ""));
-        put("Kill 25 Creepers", new QuestData(CREEPER_QUEST, 25, 600, ""));
-        put("Kill a Wither", new QuestData(WITHER_QUEST, 1, 2000, ""));
-        put("Kill 50 Cows", new QuestData(COW_QUEST, 50, 150, ""));
-        put("Kill 10 Rabbits", new QuestData(RABBIT_QUEST, 10, 200, ""));
-        put("Kill 50 Sheep", new QuestData(SHEEP_QUEST, 50, 150, ""));
-        put("Kill 10 Chickens", new QuestData(CHICKEN_QUEST, 10, 100, ""));
-        put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 150, ""));
+        put("Mine 64 Quartz Blocks", new QuestData(QUARTZ_QUEST, 64, 300, TEST_REWARD));
+        put("Mine 64 Coal Ores", new QuestData(COAL_QUEST, 64, 200, TEST_REWARD2));
+        put("Mine 32 Iron Ores", new QuestData(IRON_QUEST, 32, 400, TEST_REWARD));
+        put("Mine 10 Diamond Ores", new QuestData(DIAMOND_QUEST, 10, 800 , TEST_REWARD));
+        put("Mine 5 Emerald Ores", new QuestData(EMERALD_QUEST, 5, 1000 , TEST_REWARD));
+        put("Break 200 Stone Blocks", new QuestData(STONE_QUEST, 200, 100 , TEST_REWARD2));
+        put("Break 200 End Stones", new QuestData(END_STONE_QUEST, 200, 150 , TEST_REWARD));
+        put("Break 100 Obsidian Blocks", new QuestData(OBSIDIAN_QUEST, 100, 700 , TEST_REWARD));
+        put("Harvest 25 Wheat", new QuestData(WHEAT_QUEST, 25, 100, TEST_REWARD));
+        put("Kill 50 Blazes", new QuestData(BLAZE_QUEST, 50, 900, TEST_REWARD));
+        put("Kill 25 Vex", new QuestData(VEX_QUEST, 25, 1200, TEST_REWARD));
+        put("Kill 25 Skeletons", new QuestData(SKELETON_QUEST, 25, 500, TEST_REWARD));
+        put("Kill 25 Wither Skeletons", new QuestData(WITHER_SKELETON_QUEST, 25, 1300, TEST_REWARD));
+        put("Kill 25 Creepers", new QuestData(CREEPER_QUEST, 25, 600, TEST_REWARD2));
+        put("Kill a Wither", new QuestData(WITHER_QUEST, 1, 2000, TEST_REWARD));
+        put("Kill 50 Cows", new QuestData(COW_QUEST, 50, 150, TEST_REWARD));
+        put("Kill 10 Rabbits", new QuestData(RABBIT_QUEST, 10, 200, TEST_REWARD));
+        put("Kill 50 Sheep", new QuestData(SHEEP_QUEST, 50, 150, TEST_REWARD));
+        put("Kill 10 Chickens", new QuestData(CHICKEN_QUEST, 10, 100, TEST_REWARD));
+        put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 150, TEST_REWARD));
     }};
 
     public CustomScoreboardManager(ScoreBoardQuests plugin) {
         this.plugin = plugin;
         this.questNames = new ArrayList<>(quests.keySet());
+        this.silentSender = Bukkit.createCommandSender(message -> {});
     }
 
     public void toggleScoreboardVisibility(Player player) {
@@ -219,6 +231,50 @@ public class CustomScoreboardManager implements Listener {
     public int getPlayerReward(String quest) {
         QuestData questData = quests.get(quest);
         return (questData != null) ? questData.reward() : -1;
+    }
+
+    public void giveOptionalReward(Player player, String questName) {
+        QuestData questData = quests.get(questName);
+
+        if (questData == null) {
+            plugin.getLogger().warning("Quest not found: " + questName);
+            return;
+        }
+
+        String optionalReward = questData.optionalReward();
+        if (optionalReward == null || optionalReward.isEmpty() || optionalReward.isBlank()) return;
+
+        if (optionalReward.startsWith("item:")) {
+            String[] parts = optionalReward.substring(5).split(":");
+            String itemName = parts[0];
+            int amount = 1;
+            if (parts.length > 1) {
+                try {
+                    amount = Integer.parseInt(parts[1]);
+                } catch (NumberFormatException e) {
+                    plugin.getLogger().warning("Invalid number format for reward: " + optionalReward);
+                    return;
+                }
+            }
+            giveItemReward(player, itemName, amount);
+        }
+        else if (optionalReward.startsWith("command:")) {
+            String command = optionalReward.substring(8);
+            Bukkit.dispatchCommand(silentSender, command.replace("%player%", player.getName()));
+        }
+        else {
+            plugin.getLogger().warning("Unknown optional reward type: " + optionalReward);
+        }
+    }
+
+    private void giveItemReward(Player player, String itemName, int amount) {
+        Material material = Material.matchMaterial(itemName.toUpperCase());
+        if (material != null) {
+            ItemStack itemStack = new ItemStack(material, amount);
+            player.getInventory().addItem(itemStack);
+        } else {
+            plugin.getLogger().warning("Invalid reward item type: " + itemName);
+        }
     }
 
     public boolean isScoreboardVisible(Player player) {

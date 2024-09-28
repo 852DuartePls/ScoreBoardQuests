@@ -1,5 +1,5 @@
 name: ScoreBoardQuests
-version: '0.0.1'
+version: '0.0.3'
 main: me.duart.scoreBoardQuests.ScoreBoardQuests
 api-version: '1.21'
 authors: [ DaveDuart ]

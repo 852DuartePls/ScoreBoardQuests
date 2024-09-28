@@ -144,7 +144,7 @@ public class ScoreboardQuestsHandler implements Listener {
                         .append(mini.deserialize("<reset><white>Quest: "))
                         .append(Component.text(quest)).color(NamedTextColor.GOLD)
                         .append(mini.deserialize("<white> completed!</white>")));
-                scoreboardManager.getPlayerReward(playerId);
+                scoreboardManager.giveOptionalReward(player, quest);
                 scoreboardManager.updateCurrentQuest(player, 1);
                 economy.depositPlayer(player, totalAmount);
             }

@@ -184,7 +184,8 @@ public class CommandsManager implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             sender.sendMessage(mini.deserialize("""
         <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
-        <aqua>
+        <aqua><aqua><dark_gray><b> | </b><yellow><aqua>Alias:</aqua> /sbq</yellow><b> |      | </b><yellow><aqua>Optional:</aqua> -s (Disables Output)</yellow> <b>|</b></dark_gray>
+        
         ┏ /sbquests reload:
         ┗<gold> Reloads the plugin messages.</gold>
         

@@ -29,7 +29,7 @@ public final class ScoreBoardQuests extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        if (!setupEconomy() ) {
+        if (!setupEconomy()) {
             logger.severe("Vault plugin not found. Disabling plugin...");
             return;
         } else {
