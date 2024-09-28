@@ -28,7 +28,7 @@ public class CustomScoreboardManager implements Listener {
 
     private final Map<String, Integer> playerQuestCount = new ConcurrentHashMap<>();
     private final Map<String, PlayerQuestData> playerQuestDataMap = new ConcurrentHashMap<>();
-    private final HashMap<Player, Boolean> scoreboardVisible = new HashMap<>();
+    private final ConcurrentHashMap<Player, Boolean> scoreboardVisible = new ConcurrentHashMap<>();
     private final List<String> questNames;
     private static final int[] THRESHOLDS = {10, 30, 65, 125, 200, 350, 600, 1000, 2000, 4000};
 
