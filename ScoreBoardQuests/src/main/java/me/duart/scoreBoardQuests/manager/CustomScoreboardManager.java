@@ -53,8 +53,8 @@ public class CustomScoreboardManager implements Listener {
     private final Component CHICKEN_QUEST = createQuestComponent("ᴋɪʟʟ ᴄʜɪᴄᴋᴇɴs");
     private final Component PIG_QUEST = createQuestComponent("ᴋɪʟʟ ᴘɪɢs");
 
-    private final String TEST_REWARD = createCommandReward("minecraft:give %player% diamond[custom_name='[\"\",{\"text\":\"Reward Diamond\",\"italic\":false,\"color\":\"dark_aqua\"}]']");
     private final String TEST_REWARD2 = createCommandReward("minecraft:give %player% gold_ingot[custom_name='[\"\",{\"text\":\"Reward Gold\",\"italic\":false,\"bold\":true,\"color\":\"gold\"}]']");
+    private final String ESSENTIALS_REWARD = createCommandReward("essentials:give %player% diamond 1 [custom_name='[\"\",{\"text\":\"Diamantin\",\"italic\":false,\"underlined\":true,\"bold\":true,\"color\":\"blue\"}]']");
 
     private Component createQuestComponent(String questDisplayName) {
         return mini.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
@@ -65,26 +65,26 @@ public class CustomScoreboardManager implements Listener {
     }
 
     private final Map<String, QuestData> quests = new HashMap<>() {{
-        put("Mine 64 Quartz Blocks", new QuestData(QUARTZ_QUEST, 64, 300, TEST_REWARD));
-        put("Mine 64 Coal Ores", new QuestData(COAL_QUEST, 64, 200, TEST_REWARD2));
-        put("Mine 32 Iron Ores", new QuestData(IRON_QUEST, 32, 400, TEST_REWARD));
-        put("Mine 10 Diamond Ores", new QuestData(DIAMOND_QUEST, 10, 800 , TEST_REWARD));
-        put("Mine 5 Emerald Ores", new QuestData(EMERALD_QUEST, 5, 1000 , TEST_REWARD));
+        put("Mine 64 Quartz Blocks", new QuestData(QUARTZ_QUEST, 64, 300, ESSENTIALS_REWARD));
+        put("Mine 64 Coal Ores", new QuestData(COAL_QUEST, 64, 200, ESSENTIALS_REWARD));
+        put("Mine 32 Iron Ores", new QuestData(IRON_QUEST, 32, 400, ESSENTIALS_REWARD));
+        put("Mine 10 Diamond Ores", new QuestData(DIAMOND_QUEST, 10, 800 , ESSENTIALS_REWARD));
+        put("Mine 5 Emerald Ores", new QuestData(EMERALD_QUEST, 5, 1000 , ESSENTIALS_REWARD));
         put("Break 200 Stone Blocks", new QuestData(STONE_QUEST, 200, 100 , TEST_REWARD2));
-        put("Break 200 End Stones", new QuestData(END_STONE_QUEST, 200, 150 , TEST_REWARD));
-        put("Break 100 Obsidian Blocks", new QuestData(OBSIDIAN_QUEST, 100, 700 , TEST_REWARD));
-        put("Harvest 25 Wheat", new QuestData(WHEAT_QUEST, 25, 100, TEST_REWARD));
-        put("Kill 50 Blazes", new QuestData(BLAZE_QUEST, 50, 900, TEST_REWARD));
-        put("Kill 25 Vex", new QuestData(VEX_QUEST, 25, 1200, TEST_REWARD));
-        put("Kill 25 Skeletons", new QuestData(SKELETON_QUEST, 25, 500, TEST_REWARD));
-        put("Kill 25 Wither Skeletons", new QuestData(WITHER_SKELETON_QUEST, 25, 1300, TEST_REWARD));
+        put("Break 200 End Stones", new QuestData(END_STONE_QUEST, 200, 150 , ESSENTIALS_REWARD));
+        put("Break 100 Obsidian Blocks", new QuestData(OBSIDIAN_QUEST, 100, 700 , ESSENTIALS_REWARD));
+        put("Harvest 25 Wheat", new QuestData(WHEAT_QUEST, 25, 100, ESSENTIALS_REWARD));
+        put("Kill 50 Blazes", new QuestData(BLAZE_QUEST, 50, 900, ESSENTIALS_REWARD));
+        put("Kill 25 Vex", new QuestData(VEX_QUEST, 25, 1200, ESSENTIALS_REWARD));
+        put("Kill 25 Skeletons", new QuestData(SKELETON_QUEST, 25, 500, ESSENTIALS_REWARD));
+        put("Kill 25 Wither Skeletons", new QuestData(WITHER_SKELETON_QUEST, 25, 1300, ESSENTIALS_REWARD));
         put("Kill 25 Creepers", new QuestData(CREEPER_QUEST, 25, 600, TEST_REWARD2));
-        put("Kill a Wither", new QuestData(WITHER_QUEST, 1, 2000, TEST_REWARD));
-        put("Kill 50 Cows", new QuestData(COW_QUEST, 50, 150, TEST_REWARD));
-        put("Kill 10 Rabbits", new QuestData(RABBIT_QUEST, 10, 200, TEST_REWARD));
-        put("Kill 50 Sheep", new QuestData(SHEEP_QUEST, 50, 150, TEST_REWARD));
-        put("Kill 10 Chickens", new QuestData(CHICKEN_QUEST, 10, 100, TEST_REWARD));
-        put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 150, TEST_REWARD));
+        put("Kill a Wither", new QuestData(WITHER_QUEST, 1, 2000, ESSENTIALS_REWARD));
+        put("Kill 50 Cows", new QuestData(COW_QUEST, 50, 150, ESSENTIALS_REWARD));
+        put("Kill 10 Rabbits", new QuestData(RABBIT_QUEST, 10, 200, ESSENTIALS_REWARD));
+        put("Kill 50 Sheep", new QuestData(SHEEP_QUEST, 50, 150, ESSENTIALS_REWARD));
+        put("Kill 10 Chickens", new QuestData(CHICKEN_QUEST, 10, 100, ESSENTIALS_REWARD));
+        put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 150, ESSENTIALS_REWARD));
     }};
 
     public CustomScoreboardManager(ScoreBoardQuests plugin) {
@@ -150,12 +150,18 @@ public class CustomScoreboardManager implements Listener {
         int completedQuests = playerQuestCount.getOrDefault(playerId, 0);
         int multiplier = getMultiplier(completedQuests);
 
-        Component streakComponent = mini.deserialize("<gray>sᴛʀᴇᴀᴋ: </gray>" + completedQuests + (multiplier >= 2 ? " <color:#80ff88>(x" + multiplier + "$)</color>" : ""));
+        Component streakComponent = mini.deserialize("<gray>sᴛʀᴇᴀᴋ: </gray>" + completedQuests +
+                (multiplier >= 2 ? " <color:#80ff88>(x" + multiplier + "$)</color>" : ""));
         objective.getScore(String.valueOf(scoreIndex)).customName(streakComponent);
         scoreIndex++;
 
-        objective.getScore(String.valueOf(scoreIndex)).customName(Component.empty());
+        if (plugin.isWeekend()) {
+            Component weekendBonus = mini.deserialize("<color:#ffcc00>[ᴡᴇᴇᴋᴇɴᴅ ʙᴏɴᴜs!]</color>");
+            objective.getScore(String.valueOf(scoreIndex)).customName(weekendBonus);
+            scoreIndex++;
+        }
 
+        objective.getScore(String.valueOf(scoreIndex)).customName(Component.empty());
         objective.getScore(String.valueOf(scoreIndex + 1)).customName(advertisement);
     }
 

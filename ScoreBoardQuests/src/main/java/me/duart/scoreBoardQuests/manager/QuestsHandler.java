@@ -19,7 +19,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ScoreboardQuestsHandler implements Listener {
+public class QuestsHandler implements Listener {
     private final CustomScoreboardManager scoreboardManager;
     private final ScoreBoardQuests plugin;
     private final MiniMessage mini = MiniMessage.miniMessage();
@@ -52,7 +52,7 @@ public class ScoreboardQuestsHandler implements Listener {
         put("Kill 50 Pigs", 50);
     }};
 
-    public ScoreboardQuestsHandler(CustomScoreboardManager scoreboardManager, MultiplierHandler multiplierHandler, ScoreBoardQuests plugin) {
+    public QuestsHandler(CustomScoreboardManager scoreboardManager, MultiplierHandler multiplierHandler, ScoreBoardQuests plugin) {
         this.scoreboardManager = scoreboardManager;
         this.plugin = plugin;
         this.economy = plugin.getEconomy();
@@ -133,12 +133,11 @@ public class ScoreboardQuestsHandler implements Listener {
     private void handleQuestCompletion(Player player, String playerId, String quest, Component prefix) {
         int progress = scoreboardManager.getPlayerProgress(playerId);
         int goal = scoreboardManager.getQuestGoal(quest);
-        int completedQuests = scoreboardManager.getCompletedQuests(playerId);
-        int reward = scoreboardManager.getPlayerReward(quest);
-        int multiplier = multiplierHandler.getTotalMultiplier(player, completedQuests);
-        double totalAmount = reward * multiplier;
-
         if (progress >= goal) {
+            int completedQuests = scoreboardManager.getCompletedQuests(playerId);
+            int reward = scoreboardManager.getPlayerReward(quest);
+            int multiplier = multiplierHandler.getTotalMultiplier(player, completedQuests);
+            double totalAmount = reward * multiplier;
             if (scoreboardManager.isScoreboardVisible(player)) {
                 player.sendMessage(prefix.append(Component.text(" "))
                         .append(mini.deserialize("<reset><white>Quest: "))

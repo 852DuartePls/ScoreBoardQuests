@@ -3,7 +3,7 @@ package me.duart.scoreBoardQuests;
 import me.duart.scoreBoardQuests.commands.CommandsManager;
 import me.duart.scoreBoardQuests.manager.CustomScoreboardManager;
 import me.duart.scoreBoardQuests.manager.MultiplierHandler;
-import me.duart.scoreBoardQuests.manager.ScoreboardQuestsHandler;
+import me.duart.scoreBoardQuests.manager.QuestsHandler;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
@@ -12,6 +12,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -22,7 +24,7 @@ public final class ScoreBoardQuests extends JavaPlugin {
     private Economy economy;
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Map<String, Component> messages = new HashMap<>();
-    private final MultiplierHandler multiplierHandler = new MultiplierHandler();
+    private final MultiplierHandler multiplierHandler = new MultiplierHandler(this);
     private static final String DEFAULT_TITLE = "<b><color:#ff5d05>Quests</color></b>";
     private static final String DEFAULT_PREFIX = "<gray>[<blue>ScoreBoardQuests</blue>]</gray>";
     private static final String DEFAULT_BOTTOM = "<color:#EC6EAD>example.server.net</color>";
@@ -38,15 +40,17 @@ public final class ScoreBoardQuests extends JavaPlugin {
         saveDefaultConfig();
         loadMessagesFromConfig(this);
         CustomScoreboardManager scoreboardQuests = new CustomScoreboardManager(this);
-        ScoreboardQuestsHandler scoreboardQuestsHandler = new ScoreboardQuestsHandler(scoreboardQuests, multiplierHandler, this);
+        QuestsHandler questsHandler = new QuestsHandler(scoreboardQuests, multiplierHandler, this);
         getServer().getPluginManager().registerEvents(scoreboardQuests, this);
-        getServer().getPluginManager().registerEvents(scoreboardQuestsHandler, this);
+        getServer().getPluginManager().registerEvents(questsHandler, this);
         PluginCommand command = getCommand("sbquests");
         if (command != null) {
             command.setExecutor(new CommandsManager(this, multiplierHandler, scoreboardQuests));
             command.setTabCompleter(new CommandsManager(this, multiplierHandler, scoreboardQuests));
         }
         logger.info("Plugin Enabled");
+
+        logger.info("Today is " + LocalDate.now().getDayOfWeek().name() + (isWeekend() ? ". Weekend multiplier enabled." : "."));
     }
 
     public void onReload() {
@@ -86,5 +90,10 @@ public final class ScoreBoardQuests extends JavaPlugin {
 
     public Economy getEconomy() {
         return economy;
+    }
+
+    public boolean isWeekend() {
+        DayOfWeek dayOfWeek = LocalDate.now().getDayOfWeek();
+        return dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
     }
 }

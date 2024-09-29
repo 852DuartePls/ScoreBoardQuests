@@ -1,5 +1,6 @@
 package me.duart.scoreBoardQuests.manager;
 
+import me.duart.scoreBoardQuests.ScoreBoardQuests;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -10,6 +11,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class MultiplierHandler {
+    private final ScoreBoardQuests plugin;
+
+    public MultiplierHandler(ScoreBoardQuests plugin) {
+        this.plugin = plugin;
+    }
 
     public boolean isMultiplier(ItemStack item) {
         if (item.getType() != Material.ORANGE_DYE) return false;
@@ -53,7 +59,11 @@ public class MultiplierHandler {
     }
 
     public int getQuestsMultiplier(int completedMissions) {
-        return CustomScoreboardManager.getMultiplier(completedMissions);
+        int baseMultiplier = CustomScoreboardManager.getMultiplier(completedMissions);
+        if (plugin.isWeekend()) {
+            return baseMultiplier * 2;
+        }
+        return baseMultiplier;
     }
 
     public int getTotalMultiplier(Player player, int completedQuests) {
