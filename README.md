@@ -1,8 +1,6 @@
 # ScoreBoardQuests 
 ### An infinite quests scoreboard plugin
 
-**Not Intend for public use**
-
 ## *Commands:*
 
 ### /sbquests reload
