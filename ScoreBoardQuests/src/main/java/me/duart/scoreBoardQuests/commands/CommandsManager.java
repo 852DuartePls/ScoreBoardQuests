@@ -1,281 +1,218 @@
 package me.duart.scoreBoardQuests.commands;
 
+import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
+import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.duart.scoreBoardQuests.ScoreBoardQuests;
 import me.duart.scoreBoardQuests.manager.CustomScoreboardManager;
-import me.duart.scoreBoardQuests.manager.MultiplierHandler;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.command.*;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 
+import static me.duart.scoreBoardQuests.ScoreBoardQuests.mini;
+
 @SuppressWarnings("UnstableApiUsage")
-public class CommandsManager implements CommandExecutor, TabCompleter {
+public class CommandsManager {
 
     private final ScoreBoardQuests plugin;
-    private final MiniMessage mini = MiniMessage.miniMessage();
-    private final Economy economy;
     private final CustomScoreboardManager scoreboardManager;
-    private final MultiplierHandler multiplierHandler;
+    private final String permission = "scoreboardquests.admin";
 
-    public CommandsManager(@NotNull ScoreBoardQuests plugin, MultiplierHandler multiplierHandler, CustomScoreboardManager scoreboardManager ) {
+    public CommandsManager(ScoreBoardQuests plugin, CustomScoreboardManager scoreboardManager) {
         this.plugin = plugin;
         this.scoreboardManager = scoreboardManager;
-        this.multiplierHandler = multiplierHandler;
-        this.economy = plugin.getEconomy();
     }
 
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
-        String pluginVersion = plugin.getPluginMeta().getVersion();
-        var pluginVersionComponent = mini.deserialize("<green> v" + pluginVersion + "</green>");
-        var pluginPrefix = plugin.getMessage("Plugin_Prefix");
-        var noPermission = mini.deserialize("<red> You do not have permission to use this command.</red>");
-        var missingArgsPayment = mini.deserialize("<red> Please specify a player and an amount to pay.</red>");
-        var missingArgsForceComplete = mini.deserialize("<red> Usage /scoreboardquests forcecomplete <player>");
-        var playerNotFound = MiniMessage.miniMessage().deserialize("<red> Player not found!</red>");
-        var invalidAmount = MiniMessage.miniMessage().deserialize("<red> Invalid amount!</red>");
-        var notEnoughBalance = MiniMessage.miniMessage().deserialize("<red> Not enough balance to complete this transaction!</red>");
+    public void registerCommands(final @NotNull ScoreBoardQuests plugin) {
+        final LifecycleEventManager<@NotNull Plugin> lifecycleManager = plugin.getLifecycleManager();
+        lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            var brigadier = event.registrar();
 
-        if (args.length == 0) {
-            sender.sendMessage(pluginPrefix.append(pluginVersionComponent));
-            return true;
-        }
+            brigadier.register(Commands.literal("sbquests")
+                    // Default: show version
+                    .executes(ctx -> {
+                        ctx.getSource().getSender().sendMessage(plugin.getMessage("Plugin_Prefix")
+                                .append(mini.deserialize("<green> v" + this.plugin.getPluginMeta().getVersion() + "</green>")));
+                        return Command.SINGLE_SUCCESS;
+                    })
 
-        String subCommand = args[0].toLowerCase();
+                    // ---- TOGGLE ----
+                    .then(Commands.literal("toggle")
+                            .executes(ctx -> {
+                                CommandSender sender = ctx.getSource().getSender();
+                                if (sender instanceof Player player) {
+                                    scoreboardManager.toggleScoreboardVisibility(player);
+                                } else {
+                                    sender.sendRichMessage("<red>You must specify a player to toggle the scoreboard visibility!</red>");
+                                }
+                                return Command.SINGLE_SUCCESS;
+                            })
+                            .then(Commands.argument("player", StringArgumentType.word())
+                                    .suggests(new OnlinePlayersArgument())
+                                    .requires(src -> src.getSender().hasPermission(permission))
+                                    .executes(ctx -> {
+                                        CommandSender sender = ctx.getSource().getSender();
+                                        Player target = Bukkit.getPlayer(StringArgumentType.getString(ctx, "player"));
+                                        if (target != null) { scoreboardManager.toggleScoreboardVisibility(target); }
+                                        else { sender.sendRichMessage("<red>Player not found!</red>"); }
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                    )
 
-        return switch (subCommand) {
-            case "toggle" -> handleToggleCommand(sender, pluginPrefix, noPermission, args);
-            case "reload" -> handleReloadCommand(sender);
-            case "pay" -> handlePaymentCommand(sender, missingArgsPayment, pluginPrefix, noPermission, playerNotFound, invalidAmount, notEnoughBalance, args);
-            case "forcecomplete" -> handleForceCompleteCommand(sender, pluginPrefix, noPermission, playerNotFound, missingArgsForceComplete, args);
-            case "help" -> handleHelpCommand(sender, pluginPrefix, pluginVersionComponent, args);
-            default -> false;
-        };
+                    // ---- RELOAD ----
+                    .then(Commands.literal("reload")
+                            .requires(src -> src.getSender().hasPermission(permission))
+                            .executes(ctx -> {
+                                CommandSender sender = ctx.getSource().getSender();
+                                plugin.onReload();
+                                Bukkit.getScheduler().runTaskLater(plugin, () ->
+                                        sender.sendMessage(plugin.getMessage("Plugin_Prefix")
+                                                .append(mini.deserialize("<green>Plugin reloaded!</green>"))), 20L);
+                                return Command.SINGLE_SUCCESS;
+                            })
+                    )
+
+                    // ---- PAY ----
+                    .then(Commands.literal("pay")
+                            .requires(src -> src.getSender().hasPermission(permission))
+                            .then(Commands.argument("player", StringArgumentType.word())
+                                    .suggests(new OnlinePlayersArgument())
+                                    .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0))
+                                            .then(Commands.argument("flag", StringArgumentType.word())
+                                                    .suggests((context, builder) -> {
+                                                        builder.suggest("-s");
+                                                        return builder.buildFuture();
+                                                    })
+                                                    .executes(ctx -> handlePay(ctx, true))
+                                            )
+                                            .executes(ctx -> handlePay(ctx, false))
+                                    )
+                            )
+                    )
+
+                    // ---- FORCECOMPLETE ----
+                    .then(Commands.literal("forcecomplete")
+                            .requires(src -> src.getSender().hasPermission(permission))
+                            .then(Commands.argument("player", StringArgumentType.word())
+                                    .suggests(new OnlinePlayersArgument())
+                                    .then(Commands.argument("quantity", IntegerArgumentType.integer(1))
+                                            .then(Commands.argument("flag", StringArgumentType.word())
+                                                    .suggests((context, builder) -> {
+                                                        builder.suggest("-s");
+                                                        return builder.buildFuture();
+                                                    })
+                                                    .executes(ctx -> handleForceComplete(ctx, true))
+                                            )
+                                            .executes(ctx -> handleForceComplete(ctx, false))
+                                    )
+                                    .executes(ctx -> handleForceComplete(ctx, false))
+                            )
+                    )
+
+                    // ---- HELP ----
+                    .then(Commands.literal("help")
+                            .executes(ctx -> {
+                                handleHelp(ctx.getSource().getSender());
+                                return Command.SINGLE_SUCCESS;
+                            })
+                    ).build()
+                    , null,
+                    List.of("sbq")
+            );
+        });
     }
 
-    private boolean handleReloadCommand(@NotNull CommandSender sender) {
-        plugin.onReload();
-        var PluginPrefix = plugin.getMessage("Plugin_Prefix");
-        sender.sendMessage(PluginPrefix.append(mini.deserialize("<reset><green> Plugin reloaded!</green>")));
-        return false;
+    /*
+    I don't know why this was withdrawing from the player's money since it's not supposed to be a basic payment command
+    and just a way to deposit money to the player's account if wanted to be used as a reward command in other plugins,
+    but thankfully i caught that up lol
+    */
+    private int handlePay(@NotNull CommandContext<CommandSourceStack> ctx, boolean silent) {
+        CommandSender sender = ctx.getSource().getSender();
+        String targetName = StringArgumentType.getString(ctx, "player");
+        Player target = Bukkit.getPlayer(targetName);
+        if (target == null) return 0;
+
+        if (target == sender) {
+            sender.sendMessage(plugin.getMessage("Plugin_Prefix").append(mini.deserialize("<red>You can't pay yourself!</red>")));
+            return 0;
+        }
+
+        double amount = DoubleArgumentType.getDouble(ctx, "amount");
+
+        // Deposit to the target
+        int completed = scoreboardManager.getCompletedQuests(target.getUniqueId().toString());
+        int multiplier = CustomScoreboardManager.getMultiplier(completed);
+        if (plugin.isWeekend()) multiplier *= 2;
+        double total = amount * multiplier;
+
+        plugin.getEconomy().depositPlayer(target, total);
+
+        if (!silent) {
+            sender.sendMessage(plugin.getMessage("Plugin_Prefix")
+                    .append(mini.deserialize("<green> Sent <yellow>" + amount + "</yellow> to <yellow>" + target.getName() + "</yellow></green>")));
+            target.sendMessage(plugin.getMessage("Plugin_Prefix")
+                    .append(mini.deserialize("<green> Received <yellow>" + total + "</yellow> (multiplier x" + multiplier + ").</green>")));
+        }
+
+        return Command.SINGLE_SUCCESS;
     }
 
-    private boolean handlePaymentCommand(CommandSender sender, Component missingArgsPayment, Component pluginPrefix, Component noPermission, Component playerNotFound, Component invalidAmount, Component notEnoughBalance, String @NotNull [] args) {
-        boolean silentMode = false;
+    private int handleForceComplete(@NotNull CommandContext<CommandSourceStack> ctx, boolean silent) {
+        CommandSender sender = ctx.getSource().getSender();
+        String targetName = StringArgumentType.getString(ctx, "player");
+        Player target = Bukkit.getPlayer(targetName);
+        if (target == null) return 0;
 
-        for (String arg : args) {
-            if (arg.equalsIgnoreCase("-s")) {
-                silentMode = true;
-                break;
-            }
-        }
-
-        if (!sender.hasPermission("scoreboardquests.pay")) {
-            sender.sendMessage(pluginPrefix.append(noPermission));
-            return false;
-        }
-        if (args.length < 3) {
-            sender.sendMessage(pluginPrefix.append(missingArgsPayment));
-            return false;
-        }
-
-        Player targetPlayer = getTargetPlayer(sender, args);
-        if (targetPlayer == null) {
-            sender.sendMessage(pluginPrefix.append(playerNotFound));
-            return false;
-        }
-
-        double balance;
+        int completed = 1; // default
         try {
-            balance = Double.parseDouble(args[2]);
-        } catch (NumberFormatException e) {
-            sender.sendMessage(pluginPrefix.append(invalidAmount));
-            return false;
+            completed = IntegerArgumentType.getInteger(ctx, "quantity");
+            if (completed < 0) completed = 1;
+        } catch (IllegalArgumentException ignored) {
+            // quantity argument not provided, keep default 1
         }
 
-        OfflinePlayer senderPlayer = (sender instanceof Player) ? (Player) sender : Bukkit.getOfflinePlayer(sender.getName());
+        scoreboardManager.updateCurrentQuest(target, completed);
 
-        if (!(sender instanceof ConsoleCommandSender) && !economy.has(senderPlayer, balance)) {
-            sender.sendMessage(pluginPrefix.append(notEnoughBalance));
-            return false;
+        if (!silent) {
+            sender.sendMessage(plugin.getMessage("Plugin_Prefix")
+                    .append(mini.deserialize("<white> Completed <gold>" + completed + "</gold> quests for <green>" + target.getName() + "</green>.</white>")));
+            target.sendMessage(plugin.getMessage("Plugin_Prefix")
+                    .append(mini.deserialize("<white> You completed <gold>" + completed + "</gold> quests!</white>")));
         }
 
-        int completedQuests = scoreboardManager.getCompletedQuests(targetPlayer.getUniqueId().toString());
-        int totalMultiplier = multiplierHandler.getTotalMultiplier(targetPlayer, completedQuests);
-        double totalAmount = balance * totalMultiplier;
-
-        economy.withdrawPlayer(senderPlayer, balance);
-        economy.depositPlayer(targetPlayer, totalAmount);
-
-        if (!silentMode) {
-            sender.sendMessage(pluginPrefix.append(mini.deserialize("<green> Sent <yellow>" + balance + "</yellow> to " + targetPlayer.getName() + "</green>")));
-            targetPlayer.sendMessage(pluginPrefix.append(mini.deserialize("<green> You have completed <dark_green>" + completedQuests + "</dark_green> quests and have a total multiplier of <gold>" + totalMultiplier + "</gold></green>")));
-            targetPlayer.sendMessage(pluginPrefix.append(mini.deserialize("<green> Your total amount received is <yellow>" + totalAmount + "</yellow></green>")));
-        }
-
-        return true;
+        return Command.SINGLE_SUCCESS;
     }
 
-    private boolean handleForceCompleteCommand(CommandSender sender, Component pluginPrefix, Component noPermission, Component playerNotFound, Component missingArgsForceComplete, String @NotNull [] args) {
-        boolean silentMode = false;
-        int numQuests = 1;
-
-        for (String arg : args) {
-            if (arg.equalsIgnoreCase("-s")) {
-                silentMode = true;
-                break;
-            }
-        }
-
-        if (!sender.hasPermission("scoreboardquests.admin")) {
-            sender.sendMessage(pluginPrefix.append(noPermission));
-            return false;
-        }
-
-        if (args.length < 2) {
-            sender.sendMessage(pluginPrefix.append(missingArgsForceComplete));
-            return false;
-        }
-
-        Player targetPlayer = getTargetPlayer(sender, args);
-        if (targetPlayer == null) {
-            sender.sendMessage(pluginPrefix.append(playerNotFound));
-            return false;
-        }
-
-        if (args.length >= 3) {
-            try {
-                numQuests = Integer.parseInt(args[2]);
-                if (numQuests <= 0) {
-                    numQuests = 1;
-                }
-            } catch (NumberFormatException ignored) {
-            }
-        }
-
-        scoreboardManager.updateCurrentQuest(targetPlayer, numQuests);
-
-        if (!silentMode) {
-            sender.sendMessage(pluginPrefix.append(Component.text(" "))
-                    .append(MiniMessage.miniMessage().deserialize("<white>Completed: <gold>" + numQuests + "</gold> quests! for the player: </white>"))
-                    .append(Component.text(targetPlayer.getName()).color(NamedTextColor.GREEN)));
-
-            targetPlayer.sendMessage(pluginPrefix.append(Component.text(" "))
-                    .append(MiniMessage.miniMessage().deserialize("<white>You have just completed:<gold> " + numQuests + "</gold> quests!</white>")));
-        }
-        return true;
-    }
-
-    private boolean handleHelpCommand(@NotNull CommandSender sender, Component pluginPrefix, Component pluginVersionComponent, String[] args) {
-        if (!sender.hasPermission("scoreboardquests.admin") || !sender.hasPermission("scoreboardquests.pay")) {
-            sender.sendMessage(pluginPrefix.append(pluginVersionComponent));
-            return false;
-        }
-
-        if (args.length == 1) {
-            sender.sendMessage(mini.deserialize("""
-        <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
-        <aqua><aqua><dark_gray><b> | </b><yellow><aqua>Alias:</aqua> /sbq</yellow><b> |      | </b><yellow><aqua>Optional:</aqua> -s (Disables Output)</yellow> <b>|</b></dark_gray>
-        
-        ┏ /sbquests reload:
-        ┗<gold> Reloads the plugin messages.</gold>
-        
-        ┏ /sbquests pay <player> <amount> "-s":
-        ┗<gold> Processes a player's payment.</gold>
-        
-        ┏ /sbquests forcecomplete <dark_gray><player> <amount></dark_gray> "-s":
-        ┗<gold> Completes the current quest for the player and optionally adds the specified amount to the streak.</gold>
-        
-        ┏ /sbquests toggle <dark_gray><player></dark_gray>:
-        ┗<gold> Toggles the visibility of the quests scoreboard.</gold>
-        </aqua>
-        <dark_aqua><st>=============================================</st></dark_aqua>
-        """));
-        }
-        return true;
-    };
-
-    private boolean handleToggleCommand(CommandSender sender, Component pluginPrefix, Component playerNotFound, String @NotNull [] args) {
-        if (args.length == 1) {
-            if (!(sender instanceof Player targetPlayer)) {
-                sender.sendMessage(mini.deserialize("<red>You must be a player to toggle your own scoreboard visibility!</red>"));
-                return false;
-            }
-
-            scoreboardManager.toggleScoreboardVisibility(targetPlayer);
-            return true;
-        }
-
-        if (args.length == 2) {
-            if (!sender.hasPermission("scoreboardquests.admin")) {
-                sender.sendMessage(mini.deserialize("<red>You do not have permission to toggle another player's scoreboard visibility.</red>"));
-                return false;
-            }
-
-            Player targetPlayer = getTargetPlayer(sender, args);
-            if (targetPlayer == null) {
-                sender.sendMessage(pluginPrefix.append(playerNotFound));
-                return false;
-            }
-
-            scoreboardManager.toggleScoreboardVisibility(targetPlayer);
-            return true;
-        }
-
-        return false;
-    }
-
-    private @Nullable Player getTargetPlayer(CommandSender sender, String @NotNull [] args) {
-        if (args.length >= 2) {
-            Player target = Bukkit.getPlayer(args[1]);
-            if (target == null) {
-                sender.sendMessage(mini.deserialize("<red>Player " + args[1] + " not found!</red>"));
-            }
-            return target;
-        }
-        if (sender instanceof Player) return (Player) sender;
-        else {
-            sender.sendMessage(mini.deserialize("<red>You must specify a player when running this command from the console!</red>"));
-            return null;
-        }
-    }
-
-    @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, String @NotNull [] args) {
-        List<String> completions = new ArrayList<>();
-        if (args.length == 1) {
-            completions.add("toggle");
-            if (sender.hasPermission("scoreboardquests.pay")) {
-                completions.add("pay");
-                completions.add("help");
-            }
-            if (sender.hasPermission("scoreboardquests.admin")) {
-                completions.add("reload");
-                completions.add("pay");
-                completions.add("forcecomplete");
-                completions.add("help");
-            }
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("pay") && sender.hasPermission("scoreboardquests.pay") || sender.hasPermission("scoreboardquests.admin")) {
-            completions.addAll(Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
-                    .toList());
-        }
-        if (args.length == 2 && args[0].equalsIgnoreCase("forcecomplete") && sender.hasPermission("scoreboardquests.admin")) {
-            completions.addAll(Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
-                    .toList());
-        }
-        return completions;
+    private void handleHelp(@NotNull CommandSender sender) {
+        sender.sendRichMessage("""
+                <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
+                <aqua><dark_gray><b> | </b><yellow>Alias: /sbq</yellow><b> |      | </b><yellow>Optional: -s (silent)</yellow> <b>|</b></dark_gray>
+                
+                ┏ /sbq reload:
+                ┗ <gold>Reloads messages.</gold>
+                
+                ┏ /sbq pay <player> <amount> [-s]:
+                ┗ <gold>Pays a player.</gold>
+                
+                ┏ /sbq forcecomplete <player> [amount] [-s]:
+                ┗ <gold>Forces quest completion.</gold>
+                
+                ┏ /sbq toggle [player]:
+                ┗ <gold>Toggles scoreboard visibility.</gold>
+                
+                <dark_aqua><st>=============================================</st></dark_aqua>
+                """);
     }
 }
-
