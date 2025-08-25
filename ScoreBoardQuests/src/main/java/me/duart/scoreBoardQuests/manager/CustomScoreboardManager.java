@@ -3,7 +3,8 @@ package me.duart.scoreBoardQuests.manager;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import me.duart.scoreBoardQuests.ScoreBoardQuests;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
@@ -16,21 +17,27 @@ import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+
+import static me.duart.scoreBoardQuests.ScoreBoardQuests.mini;
 
 public class CustomScoreboardManager implements Listener {
-    private final Random random = new Random();
-    private final MiniMessage mini = MiniMessage.miniMessage();
-    private final ScoreBoardQuests plugin;
-    private final CommandSender silentSender;
 
-    private final Map<String, Integer> playerQuestCount = new ConcurrentHashMap<>();
-    private final Map<String, PlayerQuestData> playerQuestDataMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Player, Boolean> scoreboardVisible = new ConcurrentHashMap<>();
-    private final List<String> questNames;
     private static final int[] THRESHOLDS = {10, 30, 65, 125, 200, 350, 600, 1000, 2000, 4000};
+    private static final Component EMPTY = Component.empty();
+    private static final Component WEEKEND_BONUS = Component.text("[ᴡᴇᴇᴋᴇɴᴅ ʙᴏɴᴜs!]", TextColor.color(0xffcc00));
+    private static final StringBuilder PROGRESS_BUILDER = new StringBuilder(32);
+
+    private final Random random = new Random();
+    private final ScoreBoardQuests plugin;
+
+    private final Map<String, PlayerQuestData> playerQuestDataMap = new HashMap<>();
+    private final Map<String, Integer> playerQuestCount = new HashMap<>();
+    private final Map<Player, Boolean> scoreboardVisible = new WeakHashMap<>();
+
+    private final String[] questArray;
 
     private final Component QUARTZ_QUEST = createQuestComponent("ᴍɪɴᴇ ǫᴜᴀʀᴛᴢ ʙʟᴏᴄᴋs");
     private final Component COAL_QUEST = createQuestComponent("ᴍɪɴᴇ ᴄᴏᴀʟ ᴏʀᴇs");
@@ -42,7 +49,6 @@ public class CustomScoreboardManager implements Listener {
     private final Component OBSIDIAN_QUEST = createQuestComponent("ʙʀᴇᴀᴋ ᴏʙsɪᴅɪᴀɴ ʙʟᴏᴄᴋs");
     private final Component WHEAT_QUEST = createQuestComponent("ʜᴀʀᴠᴇsᴛ ᴡʜᴇᴀᴛ");
     private final Component BLAZE_QUEST = createQuestComponent("ᴋɪʟʟ ʙʟᴀᴢᴇs");
-    private final Component VEX_QUEST = createQuestComponent("ᴋɪʟʟ ᴠᴇx");
     private final Component SKELETON_QUEST = createQuestComponent("ᴋɪʟʟ sᴋᴇʟᴇᴛᴏɴs");
     private final Component WITHER_SKELETON_QUEST = createQuestComponent("ᴋɪʟʟ ᴡɪᴛʜᴇʀ sᴋᴇʟᴇᴛᴏɴs");
     private final Component CREEPER_QUEST = createQuestComponent("ᴋɪʟʟ ᴄʀᴇᴇᴘᴇʀs");
@@ -53,44 +59,31 @@ public class CustomScoreboardManager implements Listener {
     private final Component CHICKEN_QUEST = createQuestComponent("ᴋɪʟʟ ᴄʜɪᴄᴋᴇɴs");
     private final Component PIG_QUEST = createQuestComponent("ᴋɪʟʟ ᴘɪɢs");
 
-    private final String TEST_REWARD2 = createCommandReward("minecraft:give %player% gold_ingot[custom_name='[\"\",{\"text\":\"Reward Gold\",\"italic\":false,\"bold\":true,\"color\":\"gold\"}]']");
-    private final String ESSENTIALS_REWARD = createCommandReward("essentials:give %player% diamond 1 [custom_name='[\"\",{\"text\":\"Diamantin\",\"italic\":false,\"underlined\":true,\"bold\":true,\"color\":\"blue\"}]']");
-
-    private Component createQuestComponent(String questDisplayName) {
-        return mini.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
-    }
-
-    private String createCommandReward(String reward) {
-        return "command:" + reward;
-    }
-
     private final Map<String, QuestData> quests = new HashMap<>() {{
-        put("Mine 64 Quartz Blocks", new QuestData(QUARTZ_QUEST, 64, 300, ESSENTIALS_REWARD));
-        put("Mine 64 Coal Ores", new QuestData(COAL_QUEST, 64, 200, ESSENTIALS_REWARD));
-        put("Mine 32 Iron Ores", new QuestData(IRON_QUEST, 32, 400, ESSENTIALS_REWARD));
-        put("Mine 10 Diamond Ores", new QuestData(DIAMOND_QUEST, 10, 800 , ESSENTIALS_REWARD));
-        put("Mine 5 Emerald Ores", new QuestData(EMERALD_QUEST, 5, 1000 , ESSENTIALS_REWARD));
-        put("Break 200 Stone Blocks", new QuestData(STONE_QUEST, 200, 100 , TEST_REWARD2));
-        put("Break 200 End Stones", new QuestData(END_STONE_QUEST, 200, 150 , ESSENTIALS_REWARD));
-        put("Break 100 Obsidian Blocks", new QuestData(OBSIDIAN_QUEST, 100, 700 , ESSENTIALS_REWARD));
-        put("Harvest 25 Wheat", new QuestData(WHEAT_QUEST, 25, 100, ESSENTIALS_REWARD));
-        put("Kill 50 Blazes", new QuestData(BLAZE_QUEST, 50, 900, ESSENTIALS_REWARD));
-        put("Kill 25 Vex", new QuestData(VEX_QUEST, 25, 1200, ESSENTIALS_REWARD));
-        put("Kill 25 Skeletons", new QuestData(SKELETON_QUEST, 25, 500, ESSENTIALS_REWARD));
-        put("Kill 25 Wither Skeletons", new QuestData(WITHER_SKELETON_QUEST, 25, 1300, ESSENTIALS_REWARD));
-        put("Kill 25 Creepers", new QuestData(CREEPER_QUEST, 25, 600, TEST_REWARD2));
-        put("Kill a Wither", new QuestData(WITHER_QUEST, 1, 2000, ESSENTIALS_REWARD));
-        put("Kill 50 Cows", new QuestData(COW_QUEST, 50, 150, ESSENTIALS_REWARD));
-        put("Kill 10 Rabbits", new QuestData(RABBIT_QUEST, 10, 200, ESSENTIALS_REWARD));
-        put("Kill 50 Sheep", new QuestData(SHEEP_QUEST, 50, 150, ESSENTIALS_REWARD));
-        put("Kill 10 Chickens", new QuestData(CHICKEN_QUEST, 10, 100, ESSENTIALS_REWARD));
-        put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 150, ESSENTIALS_REWARD));
+        put("Mine 64 Quartz Blocks", new QuestData(QUARTZ_QUEST, 64, 1000, ""));
+        put("Mine 64 Coal Ores", new QuestData(COAL_QUEST, 64, 500, ""));
+        put("Mine 32 Iron Ores", new QuestData(IRON_QUEST, 32, 2000, ""));
+        put("Mine 10 Diamond Ores", new QuestData(DIAMOND_QUEST, 10, 2000, ""));
+        put("Mine 5 Emerald Ores", new QuestData(EMERALD_QUEST, 5, 500, ""));
+        put("Break 200 Stone Blocks", new QuestData(STONE_QUEST, 200, 100, ""));
+        put("Break 200 End Stones", new QuestData(END_STONE_QUEST, 200, 5000, ""));
+        put("Break 100 Obsidian Blocks", new QuestData(OBSIDIAN_QUEST, 100, 100, ""));
+        put("Harvest 25 Wheat", new QuestData(WHEAT_QUEST, 25, 2000, ""));
+        put("Kill 50 Blazes", new QuestData(BLAZE_QUEST, 50, 500, ""));
+        put("Kill 25 Skeletons", new QuestData(SKELETON_QUEST, 25, 1000, ""));
+        put("Kill 25 Wither Skeletons", new QuestData(WITHER_SKELETON_QUEST, 25, 500, ""));
+        put("Kill 25 Creepers", new QuestData(CREEPER_QUEST, 25, 1000, ""));
+        put("Kill a Wither", new QuestData(WITHER_QUEST, 1, 10000, ""));
+        put("Kill 50 Cows", new QuestData(COW_QUEST, 50, 500, ""));
+        put("Kill 10 Rabbits", new QuestData(RABBIT_QUEST, 10, 1000, ""));
+        put("Kill 50 Sheep", new QuestData(SHEEP_QUEST, 50, 500, ""));
+        put("Kill 10 Chickens", new QuestData(CHICKEN_QUEST, 10, 1000, ""));
+        put("Kill 50 Pigs", new QuestData(PIG_QUEST, 50, 1000, ""));
     }};
 
     public CustomScoreboardManager(ScoreBoardQuests plugin) {
         this.plugin = plugin;
-        this.questNames = new ArrayList<>(quests.keySet());
-        this.silentSender = Bukkit.createCommandSender(message -> {});
+        this.questArray = quests.keySet().toArray(new String[0]);
     }
 
     public void toggleScoreboardVisibility(Player player) {
@@ -105,27 +98,30 @@ public class CustomScoreboardManager implements Listener {
         }
     }
 
-    private void updateScores(Player player) {
-        Component questTitle = plugin.getMessage("Title");
-        Component advertisement = plugin.getMessage("Bottom_Message");
-        Scoreboard playerScoreboard = player.getScoreboard();
+    private void ensurePlayerScoreboard(@NotNull Player player) {
+        if (player.getScoreboard() == Bukkit.getScoreboardManager().getMainScoreboard()) {
+            player.setScoreboard(Bukkit.getScoreboardManager().getNewScoreboard());
+        }
+    }
+
+    private void updateScores(@NotNull Player player) {
         if (!scoreboardVisible.getOrDefault(player, true)) return;
 
-        if (playerScoreboard == Bukkit.getScoreboardManager().getMainScoreboard()) {
-            playerScoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-            player.setScoreboard(playerScoreboard);
-        }
+        ensurePlayerScoreboard(player);
+
+        Scoreboard playerScoreboard = player.getScoreboard();
+        Component questTitle = plugin.getMessage("Title");
+        Component advertisement = plugin.getMessage("Bottom_Message");
 
         Objective objective = playerScoreboard.getObjective("Quests");
-        if (objective == null) {
-            objective = playerScoreboard.registerNewObjective("Quests", Criteria.DUMMY, questTitle);
-            objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-            objective.numberFormat(NumberFormat.blank());
+        if (objective != null) {
+            objective.unregister();
         }
+        objective = playerScoreboard.registerNewObjective("Quests", Criteria.DUMMY, questTitle);
+        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+        objective.numberFormat(NumberFormat.blank());
 
-        objective.getScore("1").customName(Component.empty());
         int scoreIndex = 2;
-
         String playerId = player.getUniqueId().toString();
         PlayerQuestData questData = playerQuestDataMap.get(playerId);
 
@@ -139,10 +135,12 @@ public class CustomScoreboardManager implements Listener {
             objective.getScore(String.valueOf(scoreIndex)).customName(questDetails.displayName());
 
             int progress = questData.getProgress();
-            objective.getScore(String.valueOf(scoreIndex + 1)).customName(mini.deserialize("<gray>ᴘʀᴏɢʀᴇss:</gray> " + progress + "/" + questDetails.goal()));
+            PROGRESS_BUILDER.setLength(0);
+            PROGRESS_BUILDER.append("ᴘʀᴏɢʀᴇss: ").append(progress).append('/').append(questDetails.goal());
+            objective.getScore(String.valueOf(scoreIndex + 1)).customName(Component.text(PROGRESS_BUILDER.toString(), NamedTextColor.GRAY));
             scoreIndex += 2;
 
-            Component rewardText = mini.deserialize("<gray>ʀᴇᴡᴀʀᴅ: </gray><color:#80ff88>"+ questDetails.reward() + "$</color>");
+            Component rewardText = Component.text("ʀᴇᴡᴀʀᴅ: ", NamedTextColor.GRAY).append(Component.text(questDetails.reward() + "$", TextColor.color(0x80ff88)));
             objective.getScore(String.valueOf(scoreIndex)).customName(rewardText);
             scoreIndex++;
         }
@@ -156,36 +154,31 @@ public class CustomScoreboardManager implements Listener {
         scoreIndex++;
 
         if (plugin.isWeekend()) {
-            Component weekendBonus = mini.deserialize("<color:#ffcc00>[ᴡᴇᴇᴋᴇɴᴅ ʙᴏɴᴜs!]</color>");
-            objective.getScore(String.valueOf(scoreIndex)).customName(weekendBonus);
+            objective.getScore(String.valueOf(scoreIndex)).customName(WEEKEND_BONUS);
             scoreIndex++;
         }
 
-        objective.getScore(String.valueOf(scoreIndex)).customName(Component.empty());
+        objective.getScore(String.valueOf(scoreIndex)).customName(EMPTY);
         objective.getScore(String.valueOf(scoreIndex + 1)).customName(advertisement);
     }
 
     public void createScoreboard(Player player) {
-        if (scoreboardVisible.getOrDefault(player, true)){
-            updateScores(player);
-        }
+        ensurePlayerScoreboard(player);
+        updateScores(player);
     }
 
     @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
+    public void onPlayerJoin(@NotNull PlayerJoinEvent event) {
         Player player = event.getPlayer();
         String playerId = player.getUniqueId().toString();
 
-        playerQuestDataMap.computeIfAbsent(playerId, id -> {
-            String quest = questNames.get(random.nextInt(questNames.size()));
-            return new PlayerQuestData(quest);
-        });
-
+        playerQuestDataMap.computeIfAbsent(playerId, id
+                -> new PlayerQuestData(questArray[random.nextInt(questArray.length)]));
         scoreboardVisible.putIfAbsent(player, true);
         createScoreboard(player);
     }
 
-    public void updateCurrentQuest(Player player, int completedCount) {
+    public void updateCurrentQuest(@NotNull Player player, int completedCount) {
         String playerId = player.getUniqueId().toString();
         PlayerQuestData playerQuestData = playerQuestDataMap.get(playerId);
 
@@ -196,7 +189,7 @@ public class CustomScoreboardManager implements Listener {
 
         String newQuest;
         do {
-            newQuest = (String) quests.keySet().toArray()[random.nextInt(quests.size())];
+            newQuest = questArray[random.nextInt(questArray.length)];
         } while (newQuest.equals(playerQuestData.getQuestName()));
 
         playerQuestData.setProgress(0);
@@ -208,14 +201,13 @@ public class CustomScoreboardManager implements Listener {
         updateScores(player);
     }
 
-    public void updateProgress(Player player, int amount) {
+    public void updateProgress(@NotNull Player player, int amount) {
+        if (isScoreboardHidden(player)) return;
         String playerId = player.getUniqueId().toString();
         PlayerQuestData playerQuestData = playerQuestDataMap.get(playerId);
-
         if (playerQuestData != null) {
             playerQuestData.setProgress(playerQuestData.getProgress() + amount);
         }
-
         updateScores(player);
     }
 
@@ -241,14 +233,13 @@ public class CustomScoreboardManager implements Listener {
 
     public void giveOptionalReward(Player player, String questName) {
         QuestData questData = quests.get(questName);
-
         if (questData == null) {
             plugin.getLogger().warning("Quest not found: " + questName);
             return;
         }
 
         String optionalReward = questData.optionalReward();
-        if (optionalReward == null || optionalReward.isEmpty() || optionalReward.isBlank()) return;
+        if (optionalReward == null || optionalReward.isBlank()) return;
 
         if (optionalReward.startsWith("item:")) {
             String[] parts = optionalReward.substring(5).split(":");
@@ -263,17 +254,16 @@ public class CustomScoreboardManager implements Listener {
                 }
             }
             giveItemReward(player, itemName, amount);
-        }
-        else if (optionalReward.startsWith("command:")) {
+        } else if (optionalReward.startsWith("command:")) {
             String command = optionalReward.substring(8);
-            Bukkit.dispatchCommand(silentSender, command.replace("%player%", player.getName()));
-        }
-        else {
+            CommandSender silent = Bukkit.createCommandSender(m -> {});
+            Bukkit.dispatchCommand(silent, command.replace("%player%", player.getName()));
+        } else {
             plugin.getLogger().warning("Unknown optional reward type: " + optionalReward);
         }
     }
 
-    private void giveItemReward(Player player, String itemName, int amount) {
+    private void giveItemReward(Player player, @NotNull String itemName, int amount) {
         Material material = Material.matchMaterial(itemName.toUpperCase());
         if (material != null) {
             ItemStack itemStack = new ItemStack(material, amount);
@@ -283,20 +273,21 @@ public class CustomScoreboardManager implements Listener {
         }
     }
 
-    public boolean isScoreboardVisible(Player player) {
-        return scoreboardVisible.getOrDefault(player, true);
+    public boolean isScoreboardHidden(Player player) {
+        return !scoreboardVisible.getOrDefault(player, true);
     }
 
     public static int getMultiplier(int completedQuests) {
-        long count = Arrays.stream(THRESHOLDS)
-                .filter(threshold -> completedQuests >= threshold)
-                .count();
-
-        return (int) count + 1;
+        int idx = Arrays.binarySearch(THRESHOLDS, completedQuests);
+        return (idx < 0 ? -idx - 1 : idx + 1) + 1;
     }
 
     public int getCompletedQuests(String playerId) {
         return playerQuestCount.getOrDefault(playerId, 0);
+    }
+
+    private static @NotNull Component createQuestComponent(String questDisplayName) {
+        return mini.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
     }
 
     public record QuestData(Component displayName, int goal, int reward, String optionalReward) { }

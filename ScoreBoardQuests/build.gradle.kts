@@ -4,7 +4,8 @@ plugins {
 }
 
 group = "me.duart"
-version = "0.0.1"
+version = "0.0.6"
+description = "Simple ScoreBoard based quests plugin"
 
 repositories {
     mavenCentral()
@@ -32,21 +33,16 @@ tasks {
         val properties = mapOf(
             "version" to project.version,
             "name" to project.name,
+            "description" to project.description,
             "apiVersion" to "1.21"
         )
         inputs.properties(properties)
-        filesMatching("plugin.yml") {
+        filesMatching("paper-plugin.yml") {
             expand(properties)
         }
     }
     runServer {
-        minecraftVersion("1.21.1")
+        minecraftVersion("1.21.8")
         serverJar(file("/run/purpur.jar"))
-        downloadPlugins{
-            github("MilkBowl", "Vault","1.7.3","Vault.jar" )
-            url("https://download.luckperms.net/1556/bukkit/loader/LuckPerms-Bukkit-5.4.141.jar")
-            url("https://ci.ender.zone/job/EssentialsX/lastSuccessfulBuild/artifact/jars/EssentialsX-2.21.0-dev+115-6157668.jar")
-            modrinth("lpc-minimessage-chat-formatter", "3.6.5")
-        }
     }
 }
