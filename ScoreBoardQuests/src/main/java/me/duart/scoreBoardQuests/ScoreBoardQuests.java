@@ -1,12 +1,15 @@
 package me.duart.scoreBoardQuests;
 
+import it.sauronsoftware.cron4j.Scheduler;
 import me.duart.scoreBoardQuests.commands.CommandsManager;
 import me.duart.scoreBoardQuests.manager.CustomScoreboardManager;
 import me.duart.scoreBoardQuests.manager.QuestsHandler;
+import me.duart.scoreBoardQuests.util.ResetHandler;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -41,9 +44,17 @@ public final class ScoreBoardQuests extends JavaPlugin {
         loadMessagesFromConfig(this);
         CustomScoreboardManager scoreboardQuests = new CustomScoreboardManager(this);
         QuestsHandler questsHandler = new QuestsHandler(scoreboardQuests, this);
+        ResetHandler resetHandler = new ResetHandler(this, scoreboardQuests);
 
         getServer().getPluginManager().registerEvents(scoreboardQuests, this);
         getServer().getPluginManager().registerEvents(questsHandler, this);
+
+        Scheduler cronj4Scheduler = new Scheduler();
+        cronj4Scheduler.schedule("0 0 * * *", () -> // Triggers every day at midnight (Local Time)
+                Bukkit.getScheduler().runTask(this, () ->
+                        resetHandler.handleReset("--Daily Reset--")));
+
+        cronj4Scheduler.start();
 
         CommandsManager commandsManager = new CommandsManager(this, scoreboardQuests);
         commandsManager.registerCommands(this);
@@ -77,6 +88,10 @@ public final class ScoreBoardQuests extends JavaPlugin {
 
     public Economy getEconomy() {
         return economy;
+    }
+
+    public @NotNull Logger getLogger() {
+        return logger;
     }
 
     public boolean isWeekend() {
