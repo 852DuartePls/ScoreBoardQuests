@@ -205,11 +205,9 @@ public class CustomScoreboardManager implements Listener {
         if (isScoreboardHidden(player)) return;
         String playerId = player.getUniqueId().toString();
         PlayerQuestData playerQuestData = playerQuestDataMap.get(playerId);
-
         if (playerQuestData != null) {
             playerQuestData.setProgress(playerQuestData.getProgress() + amount);
         }
-
         updateScores(player);
     }
 
