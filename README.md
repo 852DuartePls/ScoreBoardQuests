@@ -3,25 +3,40 @@
 
 ## *Commands:*
 
-### /sbquests reload
-Reload the plugin messages.
+**Legend:**
+> - Required: ()
+> - Optional: <>
+> - With permission only: [] , *
+> - Flags: -s (silent) no message will be outputted
 
-### /sbquests pay (player) (amount) "-s"
+### * /sbquests reload 
+Reload the plugin messages and texts.
+
+### * /sbquests pay (player) (amount) <-s>
 Processes a player's payment.
 
-### /sbquests forcecomplete (player) (quantity) "-s"
-Completes the current quest for the player and optionally adds the specified quantity to the streak.
+### * /sbquests forcecomplete (player) <quantity> <-s>
+Immediately completes the player's current quest and optionally increases their streak by the specified quantity.
+If none was specified, the streak will be increased by 1.
 
-### /sbquests toggle (player)
-Toggles the visibility of the quests scoreboard.
+### /sbquests toggle [\<player>]
+Toggles the visibility of the quests' scoreboard.
+By default, the command will toggle the visibility of the scoreboard for the sender.
+
+> [!NOTE]
+> The base admin permission is `scoreboardquests.admin`.
+> All other commands are enabled by default.
 
 ## Config — Messages
+Located in `config.yml`
 
-#### Title:
-The title of the scoreboard.
+### Title:
+Text that will be displayed as the title of the scoreboard. (Top text)
 
-#### Plugin_Prefix:
-The prefix for the plugin that will shown in chat.
+### Plugin_Prefix:
+The plugin prefix that will be shown in chat.
 
-#### Bottom_Message:
-The message displayed at the bottom of the scoreboard.
+Example: `[ScoreBoardText] Message`
+
+### Bottom_Message:
+Text that will be displayed at the bottom of the scoreboard.
