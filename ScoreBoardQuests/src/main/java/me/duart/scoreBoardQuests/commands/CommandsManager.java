@@ -11,6 +11,7 @@ import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.duart.scoreBoardQuests.ScoreBoardQuests;
 import me.duart.scoreBoardQuests.manager.CustomScoreboardManager;
+import me.duart.scoreBoardQuests.util.ResetHandler;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -39,94 +40,111 @@ public class CommandsManager {
             var brigadier = event.registrar();
 
             brigadier.register(Commands.literal("sbquests")
-                    // Default: show version
-                    .executes(ctx -> {
-                        ctx.getSource().getSender().sendMessage(plugin.getMessage("Plugin_Prefix")
-                                .append(mini.deserialize("<green> v" + this.plugin.getPluginMeta().getVersion() + "</green>")));
-                        return Command.SINGLE_SUCCESS;
-                    })
-
-                    // ---- TOGGLE ----
-                    .then(Commands.literal("toggle")
+                            // Default: show version
                             .executes(ctx -> {
-                                CommandSender sender = ctx.getSource().getSender();
-                                if (sender instanceof Player player) {
-                                    scoreboardManager.toggleScoreboardVisibility(player);
-                                } else {
-                                    sender.sendRichMessage("<red>You must specify a player to toggle the scoreboard visibility!</red>");
-                                }
+                                ctx.getSource().getSender().sendMessage(plugin.getMessage("Plugin_Prefix")
+                                        .append(mini.deserialize("<green> v" + this.plugin.getPluginMeta().getVersion() + "</green>")));
                                 return Command.SINGLE_SUCCESS;
                             })
-                            .then(Commands.argument("player", StringArgumentType.word())
-                                    .suggests(new OnlinePlayersArgument())
+
+                            // ---- TOGGLE ----
+                            .then(Commands.literal("toggle")
+                                    .executes(ctx -> {
+                                        CommandSender sender = ctx.getSource().getSender();
+                                        if (sender instanceof Player player) {
+                                            scoreboardManager.toggleScoreboardVisibility(player);
+                                        } else {
+                                            sender.sendRichMessage("<red>You must specify a player to toggle the scoreboard visibility!</red>");
+                                        }
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                                    .then(Commands.argument("player", StringArgumentType.word())
+                                            .suggests(new OnlinePlayersArgument())
+                                            .requires(src -> src.getSender().hasPermission(permission))
+                                            .executes(ctx -> {
+                                                CommandSender sender = ctx.getSource().getSender();
+                                                Player target = Bukkit.getPlayer(StringArgumentType.getString(ctx, "player"));
+                                                if (target != null) {
+                                                    scoreboardManager.toggleScoreboardVisibility(target);
+                                                } else {
+                                                    sender.sendRichMessage("<red>Player not found!</red>");
+                                                }
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                    )
+                            )
+
+                            // ---- RELOAD ----
+                            .then(Commands.literal("reload")
                                     .requires(src -> src.getSender().hasPermission(permission))
                                     .executes(ctx -> {
                                         CommandSender sender = ctx.getSource().getSender();
-                                        Player target = Bukkit.getPlayer(StringArgumentType.getString(ctx, "player"));
-                                        if (target != null) { scoreboardManager.toggleScoreboardVisibility(target); }
-                                        else { sender.sendRichMessage("<red>Player not found!</red>"); }
+                                        plugin.onReload();
+                                        Bukkit.getScheduler().runTaskLater(plugin, () ->
+                                                sender.sendMessage(plugin.getMessage("Plugin_Prefix")
+                                                        .append(mini.deserialize("<green>Plugin reloaded!</green>"))), 20L);
                                         return Command.SINGLE_SUCCESS;
                                     })
                             )
-                    )
 
-                    // ---- RELOAD ----
-                    .then(Commands.literal("reload")
-                            .requires(src -> src.getSender().hasPermission(permission))
-                            .executes(ctx -> {
-                                CommandSender sender = ctx.getSource().getSender();
-                                plugin.onReload();
-                                Bukkit.getScheduler().runTaskLater(plugin, () ->
-                                        sender.sendMessage(plugin.getMessage("Plugin_Prefix")
-                                                .append(mini.deserialize("<green>Plugin reloaded!</green>"))), 20L);
-                                return Command.SINGLE_SUCCESS;
-                            })
-                    )
-
-                    // ---- PAY ----
-                    .then(Commands.literal("pay")
-                            .requires(src -> src.getSender().hasPermission(permission))
-                            .then(Commands.argument("player", StringArgumentType.word())
-                                    .suggests(new OnlinePlayersArgument())
-                                    .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0))
-                                            .then(Commands.argument("flag", StringArgumentType.word())
-                                                    .suggests((context, builder) -> {
-                                                        builder.suggest("-s");
-                                                        return builder.buildFuture();
-                                                    })
-                                                    .executes(ctx -> handlePay(ctx, true))
+                            // ---- PAY ----
+                            .then(Commands.literal("pay")
+                                    .requires(src -> src.getSender().hasPermission(permission))
+                                    .then(Commands.argument("player", StringArgumentType.word())
+                                            .suggests(new OnlinePlayersArgument())
+                                            .then(Commands.argument("amount", DoubleArgumentType.doubleArg(0))
+                                                    .then(Commands.argument("flag", StringArgumentType.word())
+                                                            .suggests((context, builder) -> {
+                                                                builder.suggest("-s");
+                                                                return builder.buildFuture();
+                                                            })
+                                                            .executes(ctx -> handlePay(ctx, true))
+                                                    )
+                                                    .executes(ctx -> handlePay(ctx, false))
                                             )
-                                            .executes(ctx -> handlePay(ctx, false))
                                     )
                             )
-                    )
 
-                    // ---- FORCECOMPLETE ----
-                    .then(Commands.literal("forcecomplete")
-                            .requires(src -> src.getSender().hasPermission(permission))
-                            .then(Commands.argument("player", StringArgumentType.word())
-                                    .suggests(new OnlinePlayersArgument())
-                                    .then(Commands.argument("quantity", IntegerArgumentType.integer(1))
-                                            .then(Commands.argument("flag", StringArgumentType.word())
-                                                    .suggests((context, builder) -> {
-                                                        builder.suggest("-s");
-                                                        return builder.buildFuture();
-                                                    })
-                                                    .executes(ctx -> handleForceComplete(ctx, true))
+                            // ---- FORCECOMPLETE ----
+                            .then(Commands.literal("forcecomplete")
+                                    .requires(src -> src.getSender().hasPermission(permission))
+                                    .then(Commands.argument("player", StringArgumentType.word())
+                                            .suggests(new OnlinePlayersArgument())
+                                            .then(Commands.argument("quantity", IntegerArgumentType.integer(1))
+                                                    .then(Commands.argument("flag", StringArgumentType.word())
+                                                            .suggests((context, builder) -> {
+                                                                builder.suggest("-s");
+                                                                return builder.buildFuture();
+                                                            })
+                                                            .executes(ctx -> handleForceComplete(ctx, true))
+                                                    )
+                                                    .executes(ctx -> handleForceComplete(ctx, false))
                                             )
                                             .executes(ctx -> handleForceComplete(ctx, false))
                                     )
-                                    .executes(ctx -> handleForceComplete(ctx, false))
                             )
-                    )
 
-                    // ---- HELP ----
-                    .then(Commands.literal("help")
-                            .executes(ctx -> {
-                                handleHelp(ctx.getSource().getSender());
-                                return Command.SINGLE_SUCCESS;
-                            })
-                    ).build()
+                            // ---- HELP ----
+                            .then(Commands.literal("help")
+                                    .executes(ctx -> {
+                                        handleHelp(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    }))
+
+                            // ---- FORCEALLRESET ----
+                            .then(Commands.literal("resetallquests")
+                                    .requires(src -> src.getSender().hasPermission(permission))
+                                    .executes(ctx -> {
+                                        CommandSender sender = ctx.getSource().getSender();
+                                        ResetHandler resetHandler = new ResetHandler(plugin, scoreboardManager);
+                                        resetHandler.handleReset("--Manual Reset--"); // call handler
+                                        sender.sendMessage(plugin.getMessage("Plugin_Prefix")
+                                                .append(mini.deserialize("<green> All quests have been forcefully reset!</green>")));
+                                        plugin.getLogger().info("All quest reset send by: " + sender.getName());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+
+                            ).build()
                     , null,
                     List.of("sbq")
             );
@@ -145,7 +163,7 @@ public class CommandsManager {
         if (target == null) return 0;
 
         if (target == sender) {
-            sender.sendMessage(plugin.getMessage("Plugin_Prefix").append(mini.deserialize("<red>You can't pay yourself!</red>")));
+            sender.sendMessage(plugin.getMessage("Plugin_Prefix").append(mini.deserialize("<red>You can't send money to yourself!</red>")));
             return 0;
         }
 
@@ -196,23 +214,34 @@ public class CommandsManager {
     }
 
     private void handleHelp(@NotNull CommandSender sender) {
-        sender.sendRichMessage("""
-                <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
-                <aqua><dark_gray><b> | </b><yellow>Alias: /sbq</yellow><b> |      | </b><yellow>Optional: -s (silent)</yellow> <b>|</b></dark_gray>
-                
-                ┏ /sbq reload:
-                ┗ <gold>Reloads messages.</gold>
-                
-                ┏ /sbq pay <player> <amount> [-s]:
-                ┗ <gold>Pays a player.</gold>
-                
-                ┏ /sbq forcecomplete <player> [amount] [-s]:
-                ┗ <gold>Forces quest completion.</gold>
-                
-                ┏ /sbq toggle [player]:
-                ┗ <gold>Toggles scoreboard visibility.</gold>
-                
-                <dark_aqua><st>=============================================</st></dark_aqua>
-                """);
+        if (sender.hasPermission(permission)) {
+            sender.sendRichMessage("""
+                    <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
+                    <aqua><dark_gray><b> | </b><yellow>Alias: /sbq</yellow><b> |      | </b><yellow>Optional: -s (silent)</yellow> <b>|</b></dark_gray>
+                    
+                    ┏ /sbq reload:
+                    ┗ <gold>Reloads messages.</gold>
+                    
+                    ┏ /sbq pay <player> <amount> [-s]:
+                    ┗ <gold>Pays a player.</gold>
+                    
+                    ┏ /sbq forcecomplete <player> [amount] [-s]:
+                    ┗ <gold>Forces quest completion.</gold>
+                    
+                    ┏ /sbq toggle [player]:
+                    ┗ <gold>Toggles scoreboard visibility.</gold>
+                    </aqua>
+                    <dark_aqua><st>=============================================</st></dark_aqua>
+                    """);
+        } else {
+            sender.sendRichMessage("""
+                    <dark_aqua><st>=================</st>[ Commands ]<st>=================</st></dark_aqua>
+                    <aqua>
+                    ┏ /sbq toggle:
+                    ┗ <gold>Toggles scoreboard visibility.</gold>
+                    </aqua>
+                    <dark_aqua><st>=============================================</st></dark_aqua>
+                    """);
+        }
     }
 }
