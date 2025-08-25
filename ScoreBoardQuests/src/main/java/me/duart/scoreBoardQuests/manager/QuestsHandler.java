@@ -5,6 +5,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.entity.EntityType;
@@ -141,7 +142,12 @@ public class QuestsHandler implements Listener {
         player.sendMessage(plugin.getMessage("Plugin_Prefix")
                 .append(Component.text(" Quest: ", NamedTextColor.WHITE))
                 .append(Component.text(quest, NamedTextColor.GOLD))
-                .append(Component.text(" completed!", NamedTextColor.WHITE)));
+                .append(Component.text(" completed!", NamedTextColor.WHITE))
+                .append(Component.text(" (Reward: ", NamedTextColor.GRAY))
+                .append(Component.text(total + "$", NamedTextColor.GREEN))
+                .append(Component.text(")", NamedTextColor.GRAY)));
+
+        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1, 1);
 
         economy.depositPlayer(player, total);
         scoreboardManager.giveOptionalReward(player, quest);
