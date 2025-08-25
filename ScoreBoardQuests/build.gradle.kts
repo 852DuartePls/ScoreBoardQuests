@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     id("xyz.jpenilla.run-paper") version "2.3.1"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "me.duart"
@@ -17,6 +18,7 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
+    implementation("it.sauronsoftware.cron4j:cron4j:2.2.5")
 }
 
 java {
@@ -40,6 +42,10 @@ tasks {
         filesMatching("paper-plugin.yml") {
             expand(properties)
         }
+    }
+    shadowJar {
+        archiveClassifier.set("")
+        mergeServiceFiles()
     }
     runServer {
         minecraftVersion("1.21.8")
