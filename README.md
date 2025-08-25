@@ -19,9 +19,15 @@ Processes a player's payment.
 Immediately completes the player's current quest and optionally increases their streak by the specified quantity.
 If none was specified, the streak will be increased by 1.
 
+### * /sbquest resetallquests
+Forcefully resets all quests server-wide.
+
 ### /sbquests toggle [\<player>]
 Toggles the visibility of the quests' scoreboard.
 By default, the command will toggle the visibility of the scoreboard for the sender.
+
+### /sbquests help
+Displays a similar help message inside the game chat.
 
 > [!NOTE]
 > The base admin permission is `scoreboardquests.admin`.
