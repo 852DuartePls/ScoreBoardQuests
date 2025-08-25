@@ -149,7 +149,7 @@ public class CustomScoreboardManager implements Listener {
         int multiplier = getMultiplier(completedQuests);
 
         Component streakComponent = mini.deserialize("<gray>sᴛʀᴇᴀᴋ: </gray>" + completedQuests +
-                (multiplier >= 2 ? " <color:#80ff88>(x" + multiplier + "$)</color>" : ""));
+                (multiplier >= 2 ? " <color:#80ff88>(x" + multiplier + ")</color>" : ""));
         objective.getScore(String.valueOf(scoreIndex)).customName(streakComponent);
         scoreIndex++;
 
@@ -170,10 +170,7 @@ public class CustomScoreboardManager implements Listener {
     @EventHandler
     public void onPlayerJoin(@NotNull PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        String playerId = player.getUniqueId().toString();
-
-        playerQuestDataMap.computeIfAbsent(playerId, id
-                -> new PlayerQuestData(questArray[random.nextInt(questArray.length)]));
+        assignNewQuest(player);
         scoreboardVisible.putIfAbsent(player, true);
         createScoreboard(player);
     }
@@ -288,6 +285,23 @@ public class CustomScoreboardManager implements Listener {
 
     private static @NotNull Component createQuestComponent(String questDisplayName) {
         return mini.deserialize("<gradient:#11998E:#38EF7D>" + questDisplayName + "</gradient>");
+    }
+
+    public void resetAllQuests() {
+        playerQuestDataMap.clear();
+        playerQuestCount.clear();
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            assignNewQuest(player);
+            scoreboardVisible.put(player, true);
+            createScoreboard(player);
+        }
+    }
+
+    private void assignNewQuest(@NotNull Player player) {
+        String playerId = player.getUniqueId().toString();
+        String questName = questArray[random.nextInt(questArray.length)];
+        playerQuestDataMap.put(playerId, new PlayerQuestData(questName));
     }
 
     public record QuestData(Component displayName, int goal, int reward, String optionalReward) { }
